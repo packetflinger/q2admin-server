@@ -124,7 +124,12 @@ public class Server extends Thread {
     }
 
     public Client getValidClient(ClientMessage msg) {
-        return clients.get(msg.getKey());
+        Client cl = clients.get(msg.getKey());
+        if (cl != null) {
+            return cl.getAddr().getHostAddress().equals(msg.getSource().getHostAddress()) ? cl : null;
+        }
+        
+        return null;
     }
     
     public Connection getConnection() throws SQLException {

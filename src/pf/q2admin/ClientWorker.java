@@ -5,7 +5,14 @@
  */
 package pf.q2admin;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import pf.q2admin.message.ClientMessage;
+import pf.q2admin.message.RegisterMessage;
 
 /**
  *
@@ -15,10 +22,18 @@ public class ClientWorker implements Runnable {
     
     ClientMessage msg;
     Server parent;
+    Connection db;
+    Client cl;
 
-    public ClientWorker(ClientMessage msg, Server parent) {
-        this.msg = msg;
-        this.parent = parent;
+    public ClientWorker(ClientMessage msg, Client cl, Server parent) {
+        try {
+            this.cl = cl;
+            this.msg = msg;
+            this.parent = parent;
+            db = parent.getConnection();
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
     
@@ -27,33 +42,46 @@ public class ClientWorker implements Runnable {
      */
     @Override
     public void run() {
-        System.out.printf(
-                "(%s) %s - %s\n", 
-                Thread.currentThread().getName(), 
-                msg.getOperation(), 
-                msg.getData()
-        );
-        
-        switch (msg.getOperation()) {
-            case Server.CMD_REGISTER:
-                handleRegister();
-                break;
+        try {
+            System.out.printf(
+                    "(%s) %s - %s\t\t",
+                    Thread.currentThread().getName(),
+                    msg.getOperation(),
+                    msg.getData()
+            );
             
-            case Server.CMD_UNREGISTER:
-                handleUnregister();
-                break;
+            String sql = "SELECT NOW() AS now";
+            Statement st = db.createStatement();
+            ResultSet r = st.executeQuery(sql);
+            while (r.next()) {
+                System.out.printf("Time: %s\n", r.getString("now"));
+            }
             
-            case Server.CMD_CONNECT:
-                handlePlayerConnect();
-                break;
-                
-            case Server.CMD_CHAT:
-                handleChat();
-                break;
-                
-            case Server.CMD_TELEPORT:
-                handleTeleport();
-                break;
+            switch (msg.getOperation()) {
+                case Server.CMD_REGISTER:
+                    handleRegister();
+                    break;
+                    
+//                case Server.CMD_UNREGISTER:
+//                    handleUnregister();
+//                    break;
+//                    
+//                case Server.CMD_CONNECT:
+//                    handlePlayerConnect();
+//                    break;
+//                    
+//                case Server.CMD_CHAT:
+//                    handleChat();
+//                    break;
+//                    
+//                case Server.CMD_TELEPORT:
+//                    handleTeleport();
+//                    break;
+            }
+            
+            db.close();
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
@@ -63,23 +91,8 @@ public class ClientWorker implements Runnable {
      * 
      */
     private void handleRegister() {
-        String[] parts = msg.getData().split(Client.DELIMITER);
-        Client c = parent.getClient(msg.getKey());
-        if (c != null) {
-            c.setMap(parts[0]);
-            c.setMaxPlayers(Integer.parseInt(parts[1].trim()));
-            c.setRcon(parts[2]);
-            c.setPort(Integer.parseInt(parts[3].trim()));
-        } else {
-            c = new Client();
-            c.setAddr(msg.getSource());
-            c.setKey(msg.getKey());
-            c.setMap(parts[0]);
-            c.setMaxPlayers(Integer.parseInt(parts[1].trim()));
-            c.setRcon(parts[2]);
-            c.setPort(Integer.parseInt(parts[3].trim()));
-            parent.getClients().add(c);
-        }
+        RegisterMessage rg = new RegisterMessage(msg.getData());
+        cl.setRegistration(rg);
     }
     
     
@@ -87,8 +100,9 @@ public class ClientWorker implements Runnable {
      * 
      */
     private void handleUnregister() {
-        int index = parent.getClientIndex(msg.getKey());
-        parent.getClients().remove(index);
+        //int index = parent.getClientIndex(msg.getKey());
+        //parent.getClients().remove(index);
+        cl.setConnected(false);
     }
     
     
@@ -96,21 +110,21 @@ public class ClientWorker implements Runnable {
      * Called if the message sent is chat from a player
      */
     private void handleChat() {
-        Client cl = parent.getClient(msg.getKey());
-        if (cl == null) 
-            return;
-
-        String[] parts1 = msg.getData().split(Client.DELIMITER);
-        String sender = parts1[0];
-        
-        if (parts1[1].toLowerCase().trim().equals("teleport")) {
-            cl.send("say show list of servers");
-        }
-        
-        if (parts1[1].toLowerCase().trim().startsWith("goto ")) {
-            String[] chat = parts1[1].split(" ", 2);
-            cl.send(String.format("say teleporting %s to %s", sender, chat[1]));
-        }
+//        Client cl = parent.getClient(msg.getKey());
+//        if (cl == null) 
+//            return;
+//
+//        String[] parts1 = msg.getData().split(Client.DELIMITER);
+//        String sender = parts1[0];
+//        
+//        if (parts1[1].toLowerCase().trim().equals("teleport")) {
+//            cl.send("say show list of servers");
+//        }
+//        
+//        if (parts1[1].toLowerCase().trim().startsWith("goto ")) {
+//            String[] chat = parts1[1].split(" ", 2);
+//            cl.send(String.format("say teleporting %s to %s", sender, chat[1]));
+//        }
     }
     
     

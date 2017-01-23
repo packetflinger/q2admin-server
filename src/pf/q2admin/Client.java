@@ -12,13 +12,15 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import pf.q2admin.message.RegisterMessage;
 
 /**
  *
  * @author joe
  */
 public class Client {
-    public static String DELIMITER = "\\\\";
+    private boolean connected;
+    
     private InetAddress addr;
     private int port = 27910;
     private String map;
@@ -87,7 +89,14 @@ public class Client {
     public void setKey(String key) {
         this.key = key;
     }
-    
+
+    public void setRegistration(RegisterMessage r) {
+        rcon = r.getRcon();
+        port = r.getPort();
+        map = r.getMap();
+        maxPlayers = r.getMaxplayers();
+        connected = true;
+    }
     
     /**
      * Send an rcon command back to this client
@@ -123,6 +132,14 @@ public class Client {
         } catch (IOException ex) {
             Logger.getLogger(Client.class.getName()).log(Level.SEVERE, null, ex);
         }        
+    }
+
+    public boolean isConnected() {
+        return connected;
+    }
+
+    public void setConnected(boolean connected) {
+        this.connected = connected;
     }
 }
 

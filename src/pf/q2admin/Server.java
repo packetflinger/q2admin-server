@@ -225,8 +225,8 @@ public class Server extends Thread {
                     cl.setKey(rs.getString("serverkey"));
                     cl.setMap(rs.getString("map"));
                     cl.setPort(rs.getInt("port"));
+                    cl.setClientnum(rs.getInt("id"));
                     try {
-                        //cl.setAddr(InetAddress.getByAddress(rs.getBytes("addr")));
                         cl.setAddr(InetAddress.getByName(rs.getString("ip")));
                     } catch (UnknownHostException ex) {
                         Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);

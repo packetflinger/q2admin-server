@@ -28,6 +28,7 @@ public class Client {
     private int maxPlayers = 64;
     private Player[] players;
     private String key;
+    private int clientnum;
     
     private DatagramSocket socket;
     
@@ -141,5 +142,15 @@ public class Client {
     public void setConnected(boolean connected) {
         this.connected = connected;
     }
+
+    public int getClientnum() {
+        return clientnum;
+    }
+
+    public void setClientnum(int clientnum) {
+        this.clientnum = clientnum;
+    }
+    
+    
 }
 

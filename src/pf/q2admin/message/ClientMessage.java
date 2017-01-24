@@ -18,14 +18,16 @@ public class ClientMessage {
     private int operation;
     private String data;
     private InetAddress source;
+    private int clientid;
 
     public ClientMessage(DatagramPacket p) {
         setRaw(new String(p.getData()));
         source = p.getAddress();
-        String[] msg = getRaw().split("\\\\", 3);
+        String[] msg = getRaw().split("\\\\", 4);
         setKey(msg[0]);
         setOperation(Integer.parseInt(msg[1]));
-        setData(msg[2]);
+        setClientid(Integer.parseInt(msg[2]));
+        setData(msg[3]);
     }
     
     public String getKey() {
@@ -66,6 +68,14 @@ public class ClientMessage {
 
     public void setSource(InetAddress source) {
         this.source = source;
+    }
+
+    public int getClientid() {
+        return clientid;
+    }
+
+    public final void setClientid(int clientid) {
+        this.clientid = clientid;
     }
     
     

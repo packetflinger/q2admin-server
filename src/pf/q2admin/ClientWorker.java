@@ -6,6 +6,7 @@
 package pf.q2admin;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -13,6 +14,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import pf.q2admin.message.ClientMessage;
 import pf.q2admin.message.RegisterMessage;
+import pf.q2admin.message.UserinfoMessage;
 
 /**
  *
@@ -60,6 +62,10 @@ public class ClientWorker implements Runnable {
             switch (msg.getOperation()) {
                 case Server.CMD_REGISTER:
                     handleRegister();
+                    break;
+                
+                case Server.CMD_USERINFO:
+                    handleUserinfo();
                     break;
                     
 //                case Server.CMD_UNREGISTER:
@@ -145,7 +151,7 @@ public class ClientWorker implements Runnable {
             return;
         
         cl.send("say show teleport list");
-        cl.send(String.format("sv !say_person LIKE %s print list", null));
+        cl.send(String.format("sv !say_person LIKE %s print list", "blah"));
     }
     
     private void handlePlayerConnect() {
@@ -159,6 +165,30 @@ public class ClientWorker implements Runnable {
         player.setClientId(Integer.parseInt(parts1[0]));
         player.setUserInfo("\\" + parts1[2]);
         player.setName(player.getInfo("name"));
+    }
+    
+    private void handleUserinfo() {
+        try {
+            UserinfoMessage ui = new UserinfoMessage(msg.getData());
+            String sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
+                    + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setInt(1, cl.getClientnum());
+            st.setInt(2, msg.getClientid());
+            st.setString(3, ui.getName());
+            st.setString(4, ui.getSkin());
+            st.setInt(5, ui.getHand());
+            st.setInt(6, ui.getFov());
+            st.setString(7, ui.getIp());
+            st.setString(8, ui.getUserinfo());
+            
+            st.execute();
+            st.close();
+            db.close();
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
+                
     }
 }
 

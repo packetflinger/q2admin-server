@@ -16,6 +16,7 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -43,7 +44,8 @@ public class Server extends Thread {
             CMD_TELEPORT = 7,
             CMD_INVITE = 8,
             CMD_FIND = 9,
-            CMD_FRAG = 10;
+            CMD_FRAG = 10,
+            CMD_COMMAND = 11;
 
     private DatagramSocket socket = null;
     private int listen_port;
@@ -82,7 +84,7 @@ public class Server extends Thread {
             dbpool.setUser("root");
             dbpool.setPassword("");
             
-            dbpool.setMinPoolSize(5);
+            dbpool.setMinPoolSize(3);
             dbpool.setAcquireIncrement(5);
             dbpool.setMaxPoolSize(20);
             
@@ -238,10 +240,52 @@ public class Server extends Thread {
                     cl.setMap(rs.getString("map"));
                 }
                 
-                System.out.printf("Server: %s:%d\n", cl.getAddr().getHostAddress(), cl.getPort());
+                //System.out.printf("Server: %s:%d\n", cl.getAddr().getHostAddress(), cl.getPort());
             }
         } catch (SQLException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    private void updateServerObject(String key) {
+        try {
+            String sql = "SELECT * FROM server WHERE serverkey = ? LIMIT 1";
+            Connection db = dbpool.getConnection();
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setString(1, sql);
+        } catch (SQLException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    public String getCmdString(int cmd) {
+        switch (cmd) {
+            case Server.CMD_CHAT:
+                return "CHAT";
+            case Server.CMD_COMMAND:
+                return "CMD";
+            case Server.CMD_CONNECT:
+                return "CONCT";
+            case Server.CMD_DISCONNECT:
+                return "DISCNT";
+            case Server.CMD_FIND:
+                return "FIND";
+            case Server.CMD_FRAG:
+                return "FRAG";
+            case Server.CMD_INVITE:
+                return "INVT";
+            case Server.CMD_PRINT:
+                return "PRNT";
+            case Server.CMD_REGISTER:
+                return "REG";
+            case Server.CMD_TELEPORT:
+                return "TELE";
+            case Server.CMD_UNREGISTER:
+                return "UNREG";
+            case Server.CMD_USERINFO:
+                return "UINFO";
+            default:
+                return "UNKN";
         }
     }
 }

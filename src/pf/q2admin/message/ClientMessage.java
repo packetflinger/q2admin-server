@@ -23,11 +23,10 @@ public class ClientMessage {
     public ClientMessage(DatagramPacket p) {
         setRaw(new String(p.getData()));
         source = p.getAddress();
-        String[] msg = getRaw().split("\\\\", 4);
+        String[] msg = getRaw().split("\\\\", 3);
         setKey(msg[0]);
         setOperation(Integer.parseInt(msg[1]));
-        setClientid(Integer.parseInt(msg[2]));
-        setData(msg[3]);
+        setData(msg[2]);
     }
     
     public String getKey() {

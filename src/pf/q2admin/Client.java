@@ -29,6 +29,7 @@ public class Client {
     private Player[] players;
     private String key;
     private int clientnum;
+    private int flags;
     
     private DatagramSocket socket;
     
@@ -150,7 +151,13 @@ public class Client {
     public void setClientnum(int clientnum) {
         this.clientnum = clientnum;
     }
-    
-    
+
+    public int getFlags() {
+        return flags;
+    }
+
+    public void setFlags(int flags) {
+        this.flags = flags;
+    }
 }
 

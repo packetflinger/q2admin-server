@@ -7,9 +7,7 @@ package pf.q2admin;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import pf.q2admin.message.ClientMessage;
@@ -46,18 +44,11 @@ public class ClientWorker implements Runnable {
     public void run() {
         try {
             System.out.printf(
-                    "(%s) %s - %s\t\t",
+                    "(%s) %s - %s\n",
                     Thread.currentThread().getName(),
-                    msg.getOperation(),
+                    parent.getCmdString(msg.getOperation()),
                     msg.getData()
             );
-            
-            String sql = "SELECT NOW() AS now";
-            Statement st = db.createStatement();
-            ResultSet r = st.executeQuery(sql);
-            while (r.next()) {
-                System.out.printf("Time: %s\n", r.getString("now"));
-            }
             
             switch (msg.getOperation()) {
                 case Server.CMD_REGISTER:
@@ -97,8 +88,27 @@ public class ClientWorker implements Runnable {
      * 
      */
     private void handleRegister() {
-        RegisterMessage rg = new RegisterMessage(msg.getData());
-        cl.setRegistration(rg);
+        try {
+            RegisterMessage rg = new RegisterMessage(msg.getData());
+            cl.setRegistration(rg);
+            
+            String sql = "UPDATE server SET "
+                    + "map = ?, "
+                    + "maxclients = ?, "
+                    + "flags = ?, "
+                    + "date_lastcontact = NOW() "
+                    + "WHERE serverkey = ? LIMIT 1";
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setString(1, rg.getMap());
+            st.setInt(2, rg.getMaxplayers());
+            st.setInt(3, rg.getFlags());
+            st.setString(4, cl.getKey());
+            st.executeUpdate();
+            
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        
     }
     
     
@@ -170,11 +180,12 @@ public class ClientWorker implements Runnable {
     private void handleUserinfo() {
         try {
             UserinfoMessage ui = new UserinfoMessage(msg.getData());
+            System.out.printf("userinfo len: %d - '%s'",ui.getUserinfo().length(), ui.getUserinfo());
             String sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
                     + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
             PreparedStatement st = db.prepareStatement(sql);
             st.setInt(1, cl.getClientnum());
-            st.setInt(2, msg.getClientid());
+            st.setInt(2, ui.getClientid());
             st.setString(3, ui.getName());
             st.setString(4, ui.getSkin());
             st.setInt(5, ui.getHand());
@@ -182,7 +193,7 @@ public class ClientWorker implements Runnable {
             st.setString(7, ui.getIp());
             st.setString(8, ui.getUserinfo());
             
-            st.execute();
+            st.executeUpdate();
             st.close();
             db.close();
         } catch (SQLException ex) {

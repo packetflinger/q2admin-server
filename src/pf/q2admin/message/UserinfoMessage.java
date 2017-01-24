@@ -18,13 +18,16 @@ public class UserinfoMessage {
     String ip;
     int hand;
     int fov;
+    int clientid;
     
     public UserinfoMessage() {
     }
     
     public UserinfoMessage(String info) {
-        userinfo = info;
-        this.info = info.trim().split("\\\\");
+        String[] tmp = info.split("\\\\\\\\");
+        clientid = Integer.parseInt(tmp[0]);
+        userinfo = tmp[1].trim();
+        this.info = userinfo.trim().split("\\\\");
         name = get("name");
         skin = get("skin");
         ip = get("ip");
@@ -79,11 +82,19 @@ public class UserinfoMessage {
     public void setFov(int fov) {
         this.fov = fov;
     }
-    
-    public String get(String key) {
+
+    public int getClientid() {
+        return clientid;
+    }
+
+    public void setClientid(int clientid) {
+        this.clientid = clientid;
+    }
+
+    public final String get(String key) {
         for (int i=0; i<info.length; i+=2) {
             if (info[i].equalsIgnoreCase(key)) {
-                return info[i];
+                return info[i+1];
             }
         }
         

@@ -98,6 +98,8 @@ public class Client {
         map = r.getMap();
         maxPlayers = r.getMaxplayers();
         connected = true;
+        
+        players = new Player[maxPlayers];
     }
     
     /**

@@ -59,10 +59,13 @@ public class ClientWorker implements Runnable {
                     handleUserinfo();
                     break;
                     
-//                case Server.CMD_UNREGISTER:
-//                    handleUnregister();
-//                    break;
-//                    
+                case Server.CMD_UNREGISTER:
+                    handleUnregister();
+                    break;
+                    
+                case Server.CMD_CONNECT:
+                    handlePlayerConnect();
+                    break;
 //                case Server.CMD_CONNECT:
 //                    handlePlayerConnect();
 //                    break;
@@ -156,25 +159,40 @@ public class ClientWorker implements Runnable {
     
     
     private void handleTeleport() {
-        Client cl = parent.getClient(msg.getKey());
-        if (cl == null) 
+        Client client = parent.getClient(msg.getKey());
+        if (client == null) 
             return;
         
-        cl.send("say show teleport list");
-        cl.send(String.format("sv !say_person LIKE %s print list", "blah"));
+        client.send("say show teleport list");
+        client.send(String.format("sv !say_person LIKE %s print list", "blah"));
     }
     
     private void handlePlayerConnect() {
-        Client cl = parent.getClient(msg.getKey());
-        if (cl == null) 
-            return;
+        try {
+            
+            if (cl.getPlayers() == null) {
+                System.out.printf("Players array null...\n");
+                return;
+            }
+            
+            UserinfoMessage ui = new UserinfoMessage(msg.getData());
+            
+            String sql = "INSERT INTO player (server, clientnum, name, address, date_joined, date_quit) VALUES (?,?,?,?,NOW(),'0000-00-00 00:00:00')";
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setInt(1, cl.getClientnum());
+            st.setInt(2, ui.getClientid());
+            st.setString(3, ui.getName());
+            st.setString(4, ui.getIp());
+            st.executeUpdate();
+            
+            // get the insert id and store it with the player object
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    private void handlePlayerDisconnect() {
         
-        Player player = new Player();
-        
-        String[] parts1 = msg.getData().split("\\\\\\\\"); // that's \\
-        player.setClientId(Integer.parseInt(parts1[0]));
-        player.setUserInfo("\\" + parts1[2]);
-        player.setName(player.getInfo("name"));
     }
     
     private void handleUserinfo() {

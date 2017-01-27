@@ -99,7 +99,7 @@ public class Client {
         maxPlayers = r.getMaxplayers();
         connected = true;
         
-        players = new Player[maxPlayers];
+        players = new Player[maxPlayers + 10]; // leave some room
     }
     
     /**

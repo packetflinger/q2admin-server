@@ -28,9 +28,9 @@ public class UserinfoMessage {
         clientid = Integer.parseInt(tmp[0]);
         userinfo = tmp[1].trim();
         this.info = userinfo.trim().split("\\\\");
-        name = get("name");
-        skin = get("skin");
-        ip = get("ip");
+        name = get("name").trim();
+        skin = get("skin").trim();
+        ip = get("ip").trim();
         hand = Integer.parseInt(get("hand"));
         fov = Integer.parseInt(get("fov"));
     }

@@ -5,8 +5,10 @@
  */
 package pf.q2admin;
 
+import com.mysql.jdbc.Statement;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -66,6 +68,11 @@ public class ClientWorker implements Runnable {
                 case Server.CMD_CONNECT:
                     handlePlayerConnect();
                     break;
+                    
+                case Server.CMD_DISCONNECT:
+                    handlePlayerDisconnect();
+                    break;
+                    
 //                case Server.CMD_CONNECT:
 //                    handlePlayerConnect();
 //                    break;
@@ -177,13 +184,22 @@ public class ClientWorker implements Runnable {
             
             UserinfoMessage ui = new UserinfoMessage(msg.getData());
             
-            String sql = "INSERT INTO player (server, clientnum, name, address, date_joined, date_quit) VALUES (?,?,?,?,NOW(),'0000-00-00 00:00:00')";
-            PreparedStatement st = db.prepareStatement(sql);
+            String sql = "INSERT INTO player (server, clientnum, name, date_joined, date_quit) VALUES (?,?,?,NOW(),'0000-00-00 00:00:00')";
+            PreparedStatement st = db.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             st.setInt(1, cl.getClientnum());
             st.setInt(2, ui.getClientid());
             st.setString(3, ui.getName());
-            st.setString(4, ui.getIp());
             st.executeUpdate();
+            
+            ResultSet r = st.getGeneratedKeys();
+            if (r.next()) {
+                Player p = new Player();
+                p.setClientId(ui.getClientid());
+                p.setName(ui.getName());
+                p.setDatabaseId(r.getInt(1));
+                p.setUserInfo(ui.getUserinfo());
+                cl.getPlayers()[p.getClientId()] = p;
+            }
             
             // get the insert id and store it with the player object
         } catch (SQLException ex) {
@@ -192,7 +208,18 @@ public class ClientWorker implements Runnable {
     }
     
     private void handlePlayerDisconnect() {
-        
+        try {
+            int id = Integer.parseInt(msg.getData().trim());
+            String sql = "UPDATE player SET date_quit = NOW() WHERE id = ? LIMIT 1";
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setInt(1, cl.getPlayers()[id].getDatabaseId());
+            st.executeUpdate();
+            
+            cl.getPlayers()[id] = null;
+            System.out.printf("Quit handled\n");
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
     private void handleUserinfo() {

@@ -13,6 +13,7 @@ public class Player {
     private String name;
     private int clientId;
     private String userInfo;
+    private int databaseId;
     
     private int frags       = 0;
     private int deaths      = 0;
@@ -72,5 +73,23 @@ public class Player {
         
         return null;
     }
+
+    public int getDatabaseId() {
+        return databaseId;
+    }
+
+    public void setDatabaseId(int databaseId) {
+        this.databaseId = databaseId;
+    }
+
+    public int getDeaths() {
+        return deaths;
+    }
+
+    public void setDeaths(int deaths) {
+        this.deaths = deaths;
+    }
+    
+    
 }
 

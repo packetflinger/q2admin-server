@@ -77,13 +77,13 @@ public class ClientWorker implements Runnable {
 //                    handlePlayerConnect();
 //                    break;
 //                    
-//                case Server.CMD_CHAT:
-//                    handleChat();
-//                    break;
-//                    
-//                case Server.CMD_TELEPORT:
-//                    handleTeleport();
-//                    break;
+                case Server.CMD_PRINT:
+                    handlePrint();
+                    break;
+                    
+                case Server.CMD_TELEPORT:
+                    handleTeleport();
+                    break;
             }
             
             db.close();
@@ -92,6 +92,17 @@ public class ClientWorker implements Runnable {
         }
     }
     
+    private void handlePrint() {
+        String[] args = msg.getData().split("\\\\");
+        int level = Integer.parseInt(args[0]);
+
+        switch (level) {
+            case Client.PRINT_CHAT:
+                handleChat();
+                break;
+            // more later
+        }
+    }
     
     /**
      * Parse a registration message
@@ -115,6 +126,7 @@ public class ClientWorker implements Runnable {
             st.setString(4, cl.getKey());
             st.executeUpdate();
             
+            cl.send("sv !ra_online");
         } catch (SQLException ex) {
             Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -126,8 +138,7 @@ public class ClientWorker implements Runnable {
      * 
      */
     private void handleUnregister() {
-        //int index = parent.getClientIndex(msg.getKey());
-        //parent.getClients().remove(index);
+        removeAllPlayers(cl);
         cl.setConnected(false);
     }
     
@@ -136,21 +147,15 @@ public class ClientWorker implements Runnable {
      * Called if the message sent is chat from a player
      */
     private void handleChat() {
-//        Client cl = parent.getClient(msg.getKey());
-//        if (cl == null) 
-//            return;
-//
-//        String[] parts1 = msg.getData().split(Client.DELIMITER);
-//        String sender = parts1[0];
-//        
-//        if (parts1[1].toLowerCase().trim().equals("teleport")) {
-//            cl.send("say show list of servers");
-//        }
-//        
-//        if (parts1[1].toLowerCase().trim().startsWith("goto ")) {
-//            String[] chat = parts1[1].split(" ", 2);
-//            cl.send(String.format("say teleporting %s to %s", sender, chat[1]));
-//        }
+        Client cl = parent.getClient(msg.getKey());
+        if (cl == null) 
+            return;
+
+        String[] parts1 = msg.getData().split("\\\\");
+        int level = Integer.parseInt(parts1[0]);
+        String message = parts1[1];
+        
+        logChat(cl, message);
     }
     
     
@@ -166,12 +171,41 @@ public class ClientWorker implements Runnable {
     
     
     private void handleTeleport() {
-        Client client = parent.getClient(msg.getKey());
-        if (client == null) 
-            return;
-        
-        client.send("say show teleport list");
-        client.send(String.format("sv !say_person LIKE %s print list", "blah"));
+        try {
+            String[] args = msg.getData().split("\\\\");
+            Client dest = parent.getClientFromTeleportName(args[1]);
+            
+            if (dest != null) {
+                sendPlayer("Teleporting you to " + dest.getName());
+                stuffPlayer(String.format("connect %s:%d", dest.getAddr().getHostAddress(), dest.getPort()));
+                return;
+            }
+            
+            String emptyservers = "";
+            String activeservers = "";
+            
+            String sql = "SELECT teleportname FROM server WHERE enabled = 1 AND playercount = 0 ORDER BY teleportname ASC";
+            PreparedStatement st = db.prepareStatement(sql);
+            ResultSet rs = st.executeQuery();
+            
+            while (rs.next()) {
+                emptyservers += rs.getString("teleportname") + ", ";
+            }
+            
+            if (!emptyservers.equals("")) {
+                emptyservers = emptyservers.substring(0, emptyservers.length()-2);
+                sendPlayer("Empty Servers: " + emptyservers);
+            }
+            
+            sql = "SELECT id, teleportname, map FROM server WHERE enabled = 1 AND playercount > 0 ORDER BY teleportname ASC";
+            st = db.prepareStatement(sql);
+            rs = st.executeQuery();
+            while (rs.next()) {
+                sql = "";
+            } 
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
     
     private void handlePlayerConnect() {
@@ -201,6 +235,7 @@ public class ClientWorker implements Runnable {
                 cl.getPlayers()[p.getClientId()] = p;
             }
             
+            handleUserinfo();
             // get the insert id and store it with the player object
         } catch (SQLException ex) {
             Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
@@ -245,6 +280,70 @@ public class ClientWorker implements Runnable {
             Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
         }
                 
+    }
+    
+    private void sendPlayer(String privateMsg) {
+        Client client = parent.getClient(msg.getKey());
+        if (client == null) 
+            return;
+
+        client.send(String.format("sv !say_person CL %d %s", msg.getClientid(), privateMsg));
+    }
+    
+    private void stuffPlayer(String cmd) {
+        Client client = parent.getClient(msg.getKey());
+        if (client == null) 
+            return;
+
+        client.send(String.format("sv !stuff CL %d %s", msg.getClientid(), cmd));
+    }
+    
+    
+    /**
+     * Mark all active players as having quit for this server
+     * 
+     * @param cl 
+     */
+    private void removeAllPlayers(Client cl) {
+        try {
+            String sql = "UPDATE player SET date_quit = NOW() WHERE server = ? AND date_quit = '0000-00-00 00:00:00'";
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setInt(1, cl.getClientnum());
+            st.executeUpdate();
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    /**
+     * Mark player as quit for this server
+     * 
+     * @param cl
+     * @param playernum 
+     */
+    private void removePlayer(Client cl, int playernum) {
+        try {
+            String sql = "UPDATE player SET date_quit = NOW() WHERE server = ? AND clientnum = ? LIMIT 1";
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setInt(1, cl.getClientnum());
+            st.setInt(2, playernum);
+            st.executeUpdate();
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    private void logChat(Client cl, String message) {
+        try {
+            System.out.println(message.length());
+            String sql = "INSERT INTO chat (server, chat_date, message) VALUES (?, NOW(), ?)";
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setInt(1, cl.getClientnum());
+            st.setString(2, message.trim());
+            st.executeUpdate();
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
     }
 }
 

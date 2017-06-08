@@ -19,6 +19,12 @@ import pf.q2admin.message.RegisterMessage;
  * @author joe
  */
 public class Client {
+    
+    public static final int PRINT_LOW     = 0;    // pickups
+    public static final int PRINT_MEDIUM  = 1;    // obituaries
+    public static final int PRINT_HIGHT   = 2;    // critical msgs
+    public static final int PRINT_CHAT    = 3;    // shit talking
+    
     private boolean connected;
     
     private InetAddress addr;
@@ -30,6 +36,7 @@ public class Client {
     private String key;
     private int clientnum;
     private int flags;
+    private String name;
     
     private DatagramSocket socket;
     
@@ -161,5 +168,15 @@ public class Client {
     public void setFlags(int flags) {
         this.flags = flags;
     }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+    
+    
 }
 

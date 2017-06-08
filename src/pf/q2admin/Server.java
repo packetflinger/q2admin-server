@@ -105,7 +105,7 @@ public class Server extends Thread {
                     if ((cl = getValidClient(msg)) != null) {
                         threadpool.execute(new ClientWorker(msg, cl, this));
                     } else {
-                        System.out.printf("Invalid server: %s\n", msg.getKey());
+                        System.out.printf("Invalid server: %s - %s\n", msg.getKey(), msg.getSource().getHostAddress());
                     }
                 } catch (IOException e) {
                     System.out.print(e.getMessage());
@@ -214,7 +214,7 @@ public class Server extends Thread {
     
     private void loadServers() {
         try {
-            String sql = "SELECT id, serverkey, INET_NTOA(addr) AS IP, port, teleportname, map FROM server WHERE enabled = 1";
+            String sql = "SELECT id, serverkey, INET_NTOA(addr) AS ip, port, teleportname, map, name FROM server WHERE enabled = 1";
             Connection conn = dbpool.getConnection();
             Statement st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
@@ -228,6 +228,7 @@ public class Server extends Thread {
                     cl.setMap(rs.getString("map"));
                     cl.setPort(rs.getInt("port"));
                     cl.setClientnum(rs.getInt("id"));
+                    cl.setName(rs.getString("name"));
                     try {
                         cl.setAddr(InetAddress.getByName(rs.getString("ip")));
                     } catch (UnknownHostException ex) {
@@ -287,5 +288,22 @@ public class Server extends Thread {
             default:
                 return "UNKN";
         }
+    }
+    
+    public Client getClientFromTeleportName(String tp) {
+        try {
+            String sql = "SELECT serverkey FROM server WHERE teleportname = ? LIMIT 1";
+            Connection conn = dbpool.getConnection();
+            PreparedStatement st = conn.prepareStatement(sql);
+            st.setString(1, tp);
+            ResultSet rs = st.executeQuery();
+            while (rs.next()) {
+                return getClient(rs.getString("serverkey"));
+            }
+            
+        } catch (SQLException ex) {
+            Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+        }
+        return null;
     }
 }

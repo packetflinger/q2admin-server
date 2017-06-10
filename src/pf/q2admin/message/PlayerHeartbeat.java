@@ -9,7 +9,7 @@ package pf.q2admin.message;
  *
  * @author setupuser
  */
-public class UserinfoMessage {
+public class PlayerHeartbeat {
     
     String userinfo;
     String[] info;  // split by "\"
@@ -20,10 +20,10 @@ public class UserinfoMessage {
     int fov;
     int clientid;
     
-    public UserinfoMessage() {
+    public PlayerHeartbeat() {
     }
     
-    public UserinfoMessage(String info) {
+    public PlayerHeartbeat(String info) {
         String[] tmp = info.split("\\\\\\\\");
         clientid = Integer.parseInt(tmp[0]);
         userinfo = tmp[1].trim();

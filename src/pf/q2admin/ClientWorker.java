@@ -13,8 +13,8 @@ import java.sql.SQLException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import pf.q2admin.message.ClientMessage;
-import pf.q2admin.message.RegisterMessage;
-import pf.q2admin.message.UserinfoMessage;
+import pf.q2admin.message.ServerHeartbeat;
+import pf.q2admin.message.PlayerHeartbeat;
 
 /**
  *
@@ -53,23 +53,23 @@ public class ClientWorker implements Runnable {
             );
             
             switch (msg.getOperation()) {
-                case Server.CMD_REGISTER:
-                    handleRegister();
+                case Server.CMD_SERVER_HEARTBEAT:
+                    handleServerHeartbeat();
                     break;
                 
-                case Server.CMD_USERINFO:
-                    handleUserinfo();
+                case Server.CMD_PLAYER_HEARTBEAT:
+                    handlePlayerHeartbeat();
                     break;
                     
-                case Server.CMD_UNREGISTER:
-                    handleUnregister();
+                case Server.CMD_SERVER_DISCONNECT:
+                    handleServerDisconnect();
                     break;
                     
-                case Server.CMD_CONNECT:
-                    handlePlayerConnect();
-                    break;
-                    
-                case Server.CMD_DISCONNECT:
+//                case Server.CMD_CONNECT:
+//                    handlePlayerConnect();
+//                    break;
+//                    
+                case Server.CMD_PLAYER_DISCONNECT:
                     handlePlayerDisconnect();
                     break;
                     
@@ -100,7 +100,9 @@ public class ClientWorker implements Runnable {
             case Client.PRINT_CHAT:
                 handleChat();
                 break;
-            // more later
+            case Client.PRINT_MEDIUM:
+                handleObituary();
+                break;
         }
     }
     
@@ -108,9 +110,9 @@ public class ClientWorker implements Runnable {
      * Parse a registration message
      * 
      */
-    private void handleRegister() {
+    private void handleServerHeartbeat() {
         try {
-            RegisterMessage rg = new RegisterMessage(msg.getData());
+            ServerHeartbeat rg = new ServerHeartbeat(msg.getData());
             cl.setRegistration(rg);
             
             String sql = "UPDATE server SET "
@@ -129,15 +131,14 @@ public class ClientWorker implements Runnable {
             cl.send("sv !ra_online");
         } catch (SQLException ex) {
             Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        
+        }  
     }
     
     
     /**
      * 
      */
-    private void handleUnregister() {
+    private void handleServerDisconnect() {
         removeAllPlayers(cl);
         cl.setConnected(false);
     }
@@ -147,15 +148,15 @@ public class ClientWorker implements Runnable {
      * Called if the message sent is chat from a player
      */
     private void handleChat() {
-        Client cl = parent.getClient(msg.getKey());
-        if (cl == null) 
+        Client client = parent.getClient(msg.getKey());
+        if (client == null) 
             return;
 
         String[] parts1 = msg.getData().split("\\\\");
         int level = Integer.parseInt(parts1[0]);
         String message = parts1[1];
         
-        logChat(cl, message);
+        logChat(client, message);
     }
     
     
@@ -203,44 +204,55 @@ public class ClientWorker implements Runnable {
             while (rs.next()) {
                 sql = "";
             } 
+            
         } catch (SQLException ex) {
             Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
     
-    private void handlePlayerConnect() {
-        try {
-            
-            if (cl.getPlayers() == null) {
-                System.out.printf("Players array null...\n");
-                return;
-            }
-            
-            UserinfoMessage ui = new UserinfoMessage(msg.getData());
-            
-            String sql = "INSERT INTO player (server, clientnum, name, date_joined, date_quit) VALUES (?,?,?,NOW(),'0000-00-00 00:00:00')";
-            PreparedStatement st = db.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-            st.setInt(1, cl.getClientnum());
-            st.setInt(2, ui.getClientid());
-            st.setString(3, ui.getName());
-            st.executeUpdate();
-            
-            ResultSet r = st.getGeneratedKeys();
-            if (r.next()) {
-                Player p = new Player();
-                p.setClientId(ui.getClientid());
-                p.setName(ui.getName());
-                p.setDatabaseId(r.getInt(1));
-                p.setUserInfo(ui.getUserinfo());
-                cl.getPlayers()[p.getClientId()] = p;
-            }
-            
-            handleUserinfo();
-            // get the insert id and store it with the player object
-        } catch (SQLException ex) {
-            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
-        }
+    private void handleObituary() {
+        System.out.printf("Player size: %d\n", cl.getPlayers().length);
+        String obit = msg.getData().split("\\\\")[1];
+        String[] parts = obit.split(" ");
+        String message = obit.substring(parts[0].length() + 1);
+        
+        Player deadplayer = cl.getPlayerByName(parts[0]);
+        System.out.printf("Obit - dead: %s - msg: %s\n", deadplayer.getName(), message);
     }
+    
+//    private void handlePlayerConnect() {
+//        try {
+//            
+//            if (cl.getPlayers() == null) {
+//                System.out.printf("Players array null...\n");
+//                return;
+//            }
+//            
+//            PlayerHeartbeat ui = new PlayerHeartbeat(msg.getData());
+//            
+//            String sql = "INSERT INTO player (server, clientnum, name, date_joined, date_quit) VALUES (?,?,?,NOW(),'0000-00-00 00:00:00')";
+//            PreparedStatement st = db.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+//            st.setInt(1, cl.getClientnum());
+//            st.setInt(2, ui.getClientid());
+//            st.setString(3, ui.getName());
+//            st.executeUpdate();
+//            
+//            ResultSet r = st.getGeneratedKeys();
+//            if (r.next()) {
+//                Player p = new Player();
+//                p.setClientId(ui.getClientid());
+//                p.setName(ui.getName());
+//                p.setDatabaseId(r.getInt(1));
+//                p.setUserInfo(ui.getUserinfo());
+//                cl.getPlayers()[p.getClientId()] = p;
+//            }
+//            
+//            handlePlayerHeartbeat();
+//            // get the insert id and store it with the player object
+//        } catch (SQLException ex) {
+//            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+//    }
     
     private void handlePlayerDisconnect() {
         try {
@@ -257,29 +269,69 @@ public class ClientWorker implements Runnable {
         }
     }
     
-    private void handleUserinfo() {
+    private void handlePlayerHeartbeat() {
         try {
-            UserinfoMessage ui = new UserinfoMessage(msg.getData());
-            System.out.printf("userinfo len: %d - '%s'",ui.getUserinfo().length(), ui.getUserinfo());
-            String sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
-                    + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
-            PreparedStatement st = db.prepareStatement(sql);
-            st.setInt(1, cl.getClientnum());
-            st.setInt(2, ui.getClientid());
-            st.setString(3, ui.getName());
-            st.setString(4, ui.getSkin());
-            st.setInt(5, ui.getHand());
-            st.setInt(6, ui.getFov());
-            st.setString(7, ui.getIp());
-            st.setString(8, ui.getUserinfo());
-            
-            st.executeUpdate();
-            st.close();
-            db.close();
+            PlayerHeartbeat ui = new PlayerHeartbeat(msg.getData());
+            Player[] players = cl.getPlayers();
+            if (players != null) {
+                Player pl = players[ui.getClientid()];
+                if (pl != null) {
+                    if (!pl.getUserInfo().equals(ui.getUserinfo())) {
+                        String sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
+                            + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
+                        PreparedStatement st = db.prepareStatement(sql);
+                        st.setInt(1, cl.getClientnum());
+                        st.setInt(2, ui.getClientid());
+                        st.setString(3, ui.getName());
+                        st.setString(4, ui.getSkin());
+                        st.setInt(5, ui.getHand());
+                        st.setInt(6, ui.getFov());
+                        st.setString(7, ui.getIp());
+                        st.setString(8, ui.getUserinfo());
+
+                        st.executeUpdate();
+                        st.close();
+                        System.out.printf("Updating UserInfo: %s\n", ui.getUserinfo());
+                    }
+                }
+                
+                if (pl == null) {
+                    String sql = "INSERT INTO player (server, clientnum, name, date_joined, date_quit) VALUES (?,?,?,NOW(),'0000-00-00 00:00:00')";
+                    PreparedStatement st = db.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+                    st.setInt(1, cl.getClientnum());
+                    st.setInt(2, ui.getClientid());
+                    st.setString(3, ui.getName());
+                    st.executeUpdate();
+
+                    ResultSet r = st.getGeneratedKeys();
+                    if (r.next()) {
+                        Player p = new Player();
+                        p.setClientId(ui.getClientid());
+                        p.setName(ui.getName());
+                        p.setDatabaseId(r.getInt(1));
+                        p.setUserInfo(ui.getUserinfo());
+                        cl.getPlayers()[p.getClientId()] = p;
+                        
+                        sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
+                            + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
+                        PreparedStatement st2 = db.prepareStatement(sql);
+                        st2.setInt(1, cl.getClientnum());
+                        st2.setInt(2, ui.getClientid());
+                        st2.setString(3, ui.getName());
+                        st2.setString(4, ui.getSkin());
+                        st2.setInt(5, ui.getHand());
+                        st2.setInt(6, ui.getFov());
+                        st2.setString(7, ui.getIp());
+                        st2.setString(8, ui.getUserinfo());
+
+                        st2.executeUpdate();
+                        st2.close();
+                    }
+                }
+            }
         } catch (SQLException ex) {
             Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
-        }
-                
+        }      
     }
     
     private void sendPlayer(String privateMsg) {

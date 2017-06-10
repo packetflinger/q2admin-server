@@ -34,27 +34,25 @@ import pf.q2admin.message.ClientMessage;
  */
 public class Server extends Thread {
 
-    public static final int CMD_REGISTER = 0,
-            CMD_CONNECT = 1,
-            CMD_USERINFO = 2,
-            CMD_PRINT = 3,
-            CMD_CHAT = 4,
-            CMD_DISCONNECT = 5,
-            CMD_UNREGISTER = 6,
-            CMD_TELEPORT = 7,
-            CMD_INVITE = 8,
-            CMD_FIND = 9,
-            CMD_FRAG = 10,
-            CMD_COMMAND = 11;
+    public static final int CMD_SERVER_HEARTBEAT = 0,
+            CMD_SERVER_DISCONNECT = 1,
+            CMD_PLAYER_HEARTBEAT = 2,
+            CMD_PLAYER_DISCONNECT = 3,
+            CMD_PRINT = 4,
+            CMD_TELEPORT = 5,
+            CMD_INVITE = 6,
+            CMD_SEEN = 7,
+            CMD_WHOIS = 8;
 
     private DatagramSocket socket = null;
     private int listen_port;
     
-    private int threads = 4;
+    private int threads;
     
     private String dbhost;
     private String dbuser;
     private String dbpass;
+    private String dbschema;
     private int dbport;
 
     private HashMap<String, Client> clients;
@@ -78,11 +76,10 @@ public class Server extends Thread {
     public void run() {
         try {
             ExecutorService threadpool = Executors.newFixedThreadPool(threads);
-            
             dbpool.setDriverClass("com.mysql.jdbc.Driver");
-            dbpool.setJdbcUrl("jdbc:mysql://localhost:3306/q2admin");
-            dbpool.setUser("root");
-            dbpool.setPassword("");
+            dbpool.setJdbcUrl(String.format("jdbc:mysql://%s:%d/%s", dbhost, dbport, dbschema));
+            dbpool.setUser(dbuser);
+            dbpool.setPassword(dbpass);
             
             dbpool.setMinPoolSize(3);
             dbpool.setAcquireIncrement(5);
@@ -149,6 +146,8 @@ public class Server extends Thread {
             this.setDbuser(p.getProperty("db_user"));
             this.setDbpass(p.getProperty("db_pass"));
             this.setDbport(Integer.parseInt(p.getProperty("db_port")));
+            this.threads = Integer.parseInt(p.getProperty("threads"));
+            this.dbschema = p.getProperty("db_schema");
             
         } catch (FileNotFoundException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
@@ -202,7 +201,7 @@ public class Server extends Thread {
             while (true) {
                 try {
                     loadServers();
-                    Thread.sleep(30 * 1000);
+                    Thread.sleep(60 * 1000);
                 } catch (InterruptedException ex) {
                     Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
                 }
@@ -238,10 +237,19 @@ public class Server extends Thread {
                     
                     clients.put(cl.getKey(), cl);
                 } else {
+                    cl.setKey(rs.getString("serverkey"));
                     cl.setMap(rs.getString("map"));
+                    cl.setPort(rs.getInt("port"));
+                    cl.setClientnum(rs.getInt("id"));
+                    cl.setName(rs.getString("name"));
+                    try {
+                        cl.setAddr(InetAddress.getByName(rs.getString("ip")));
+                    } catch (UnknownHostException ex) {
+                        Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
+                    }
                 }
+                System.out.printf("Server loaded: %s:%d\n", cl.getAddr().getHostAddress(), cl.getPort());
                 
-                //System.out.printf("Server: %s:%d\n", cl.getAddr().getHostAddress(), cl.getPort());
             }
         } catch (SQLException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
@@ -261,30 +269,24 @@ public class Server extends Thread {
     
     public String getCmdString(int cmd) {
         switch (cmd) {
-            case Server.CMD_CHAT:
-                return "CHAT";
-            case Server.CMD_COMMAND:
-                return "CMD";
-            case Server.CMD_CONNECT:
-                return "CONCT";
-            case Server.CMD_DISCONNECT:
-                return "DISCNT";
-            case Server.CMD_FIND:
-                return "FIND";
-            case Server.CMD_FRAG:
-                return "FRAG";
             case Server.CMD_INVITE:
                 return "INVT";
+            case Server.CMD_PLAYER_DISCONNECT:
+                return "PDISC";
+            case Server.CMD_PLAYER_HEARTBEAT:
+                return "PHB";
             case Server.CMD_PRINT:
                 return "PRNT";
-            case Server.CMD_REGISTER:
-                return "REG";
+            case Server.CMD_SEEN:
+                return "SEEN";
+            case Server.CMD_SERVER_DISCONNECT:
+                return "SDISC";
+            case Server.CMD_SERVER_HEARTBEAT:
+                return "SHB";
             case Server.CMD_TELEPORT:
                 return "TELE";
-            case Server.CMD_UNREGISTER:
-                return "UNREG";
-            case Server.CMD_USERINFO:
-                return "UINFO";
+            case Server.CMD_WHOIS:
+                return "WHOIS";
             default:
                 return "UNKN";
         }

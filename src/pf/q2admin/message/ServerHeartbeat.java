@@ -9,7 +9,7 @@ package pf.q2admin.message;
  *
  * @author setupuser
  */
-public class RegisterMessage {
+public class ServerHeartbeat {
     
     private String map;
     private String rcon;
@@ -17,10 +17,10 @@ public class RegisterMessage {
     private int port;
     private int flags;
 
-    public RegisterMessage() {
+    public ServerHeartbeat() {
     }
     
-    public RegisterMessage(String str) {
+    public ServerHeartbeat(String str) {
         
         String[] regparts = str.split("\\\\");
         

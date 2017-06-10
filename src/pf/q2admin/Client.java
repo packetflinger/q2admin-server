@@ -12,7 +12,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import pf.q2admin.message.RegisterMessage;
+import pf.q2admin.message.ServerHeartbeat;
 
 /**
  *
@@ -99,14 +99,26 @@ public class Client {
         this.key = key;
     }
 
-    public void setRegistration(RegisterMessage r) {
+    public void setRegistration(ServerHeartbeat r) {
         rcon = r.getRcon();
         port = r.getPort();
         map = r.getMap();
         maxPlayers = r.getMaxplayers();
         connected = true;
         
-        players = new Player[maxPlayers + 10]; // leave some room
+        if (players == null) {
+            players = new Player[maxPlayers + 10]; // leave some room
+        }
+    }
+    
+    public Player getPlayerByName(String name) {
+        for (Player player : players) {
+            if (player.getName().equalsIgnoreCase(name)) {
+                return player;
+            }
+        }
+        
+        return null;
     }
     
     /**
@@ -176,7 +188,5 @@ public class Client {
     public void setName(String name) {
         this.name = name;
     }
-    
-    
 }
 

@@ -53,15 +53,15 @@ public class ClientWorker implements Runnable {
             );
             
             switch (msg.getOperation()) {
-                case Server.CMD_SERVER_HEARTBEAT:
+                case Server.CMD_REGISTER:
                     handleServerHeartbeat();
                     break;
                 
-                case Server.CMD_PLAYER_HEARTBEAT:
+                case Server.CMD_CONNECT:
                     handlePlayerHeartbeat();
                     break;
                     
-                case Server.CMD_SERVER_DISCONNECT:
+                case Server.CMD_QUIT:
                     handleServerDisconnect();
                     break;
                     
@@ -69,7 +69,7 @@ public class ClientWorker implements Runnable {
 //                    handlePlayerConnect();
 //                    break;
 //                    
-                case Server.CMD_PLAYER_DISCONNECT:
+                case Server.CMD_DISCONNECT:
                     handlePlayerDisconnect();
                     break;
                     

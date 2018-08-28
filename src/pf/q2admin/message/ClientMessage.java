@@ -76,7 +76,5 @@ public class ClientMessage {
     public final void setClientid(int clientid) {
         this.clientid = clientid;
     }
-    
-    
 }
 

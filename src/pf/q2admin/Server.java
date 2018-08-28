@@ -6,7 +6,6 @@
 package pf.q2admin;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
-import java.beans.PropertyVetoException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -22,11 +21,11 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Properties;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import libq2.com.packet.ByteStream;
 import pf.q2admin.message.ClientMessage;
+import pf.q2admin.message.Registration;
 
 /**
  *
@@ -34,15 +33,16 @@ import pf.q2admin.message.ClientMessage;
  */
 public class Server extends Thread {
 
-    public static final int CMD_SERVER_HEARTBEAT = 0,
-            CMD_SERVER_DISCONNECT = 1,
-            CMD_PLAYER_HEARTBEAT = 2,
-            CMD_PLAYER_DISCONNECT = 3,
-            CMD_PRINT = 4,
-            CMD_TELEPORT = 5,
-            CMD_INVITE = 6,
-            CMD_SEEN = 7,
-            CMD_WHOIS = 8;
+    public static final int CMD_REGISTER = 0,
+            CMD_QUIT = 1,
+            CMD_CONNECT = 2,
+            CMD_DISCONNECT = 3,
+            CMD_PLAYERLIST = 4,
+            CMD_PRINT = 5,
+            CMD_TELEPORT = 6,
+            CMD_INVITE = 7,
+            CMD_SEEN = 8,
+            CMD_WHOIS = 9;
 
     private DatagramSocket socket = null;
     private int listen_port;
@@ -54,6 +54,10 @@ public class Server extends Thread {
     private String dbpass;
     private String dbschema;
     private int dbport;
+    
+    private int cmd;
+    
+    private ByteStream msg;
 
     private HashMap<String, Client> clients;
     
@@ -75,41 +79,51 @@ public class Server extends Thread {
     @Override
     public void run() {
         try {
-            ExecutorService threadpool = Executors.newFixedThreadPool(threads);
-            dbpool.setDriverClass("com.mysql.jdbc.Driver");
-            dbpool.setJdbcUrl(String.format("jdbc:mysql://%s:%d/%s", dbhost, dbport, dbschema));
-            dbpool.setUser(dbuser);
-            dbpool.setPassword(dbpass);
-            
-            dbpool.setMinPoolSize(3);
-            dbpool.setAcquireIncrement(5);
-            dbpool.setMaxPoolSize(20);
+//            ExecutorService threadpool = Executors.newFixedThreadPool(threads);
+//            dbpool.setDriverClass("com.mysql.jdbc.Driver");
+//            dbpool.setJdbcUrl(String.format("jdbc:mysql://%s:%d/%s", dbhost, dbport, dbschema));
+//            dbpool.setUser(dbuser);
+//            dbpool.setPassword(dbpass);
+//            
+//            dbpool.setMinPoolSize(3);
+//            dbpool.setAcquireIncrement(5);
+//            dbpool.setMaxPoolSize(20);
             
             byte[] dataIn = new byte[1400];
-            ClientMessage msg;
+            //ClientMessage msg;
             Client cl;
             
             System.out.printf("Listening on udp/%d\n", listen_port);
             
-            startMaintenance();
+            //startMaintenance();
             
             while (true) {
                 try {
                     DatagramPacket receivePacket = new DatagramPacket(dataIn, dataIn.length);
                     socket.receive(receivePacket);
                     
-                    msg = new ClientMessage(receivePacket);
-                    if ((cl = getValidClient(msg)) != null) {
-                        threadpool.execute(new ClientWorker(msg, cl, this));
-                    } else {
-                        System.out.printf("Invalid server: %s - %s\n", msg.getKey(), msg.getSource().getHostAddress());
+                    msg = new ByteStream(receivePacket.getData(), 0);
+                    cmd = msg.readByte();
+                    System.out.printf("Msg type: %d\n", cmd);
+                    
+                    switch (cmd) {
+                        case Server.CMD_REGISTER:
+                            System.out.printf("%s\n", (new Registration(msg)).toString());
                     }
+                    
+//                    msg = new ClientMessage(receivePacket);
+//                    if ((cl = getValidClient(msg)) != null) {
+//                        threadpool.execute(new ClientWorker(msg, cl, this));
+//                    } else {
+//                        System.out.printf("Invalid server: %s - %s\n", msg.getKey(), msg.getSource().getHostAddress());
+//                    }
                 } catch (IOException e) {
                     System.out.print(e.getMessage());
                 }
                 dataIn = new byte[1400];
             }
-        } catch (PropertyVetoException ex) {
+        } catch (Exception ex) {        
+            //} catch (PropertyVetoException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -271,17 +285,17 @@ public class Server extends Thread {
         switch (cmd) {
             case Server.CMD_INVITE:
                 return "INVT";
-            case Server.CMD_PLAYER_DISCONNECT:
+            case Server.CMD_DISCONNECT:
                 return "PDISC";
-            case Server.CMD_PLAYER_HEARTBEAT:
+            case Server.CMD_CONNECT:
                 return "PHB";
             case Server.CMD_PRINT:
                 return "PRNT";
             case Server.CMD_SEEN:
                 return "SEEN";
-            case Server.CMD_SERVER_DISCONNECT:
+            case Server.CMD_QUIT:
                 return "SDISC";
-            case Server.CMD_SERVER_HEARTBEAT:
+            case Server.CMD_REGISTER:
                 return "SHB";
             case Server.CMD_TELEPORT:
                 return "TELE";

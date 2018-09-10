@@ -97,6 +97,8 @@ public class Server extends Thread {
             
             //startMaintenance();
             
+            loadServers();
+            
             while (true) {
                 try {
                     DatagramPacket receivePacket = new DatagramPacket(dataIn, dataIn.length);

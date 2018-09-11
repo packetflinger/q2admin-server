@@ -20,7 +20,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map.Entry;
 import java.util.Properties;
+import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import libq2.com.packet.ByteStream;
@@ -79,15 +84,15 @@ public class Server extends Thread {
     @Override
     public void run() {
         try {
-//            ExecutorService threadpool = Executors.newFixedThreadPool(threads);
-//            dbpool.setDriverClass("com.mysql.jdbc.Driver");
-//            dbpool.setJdbcUrl(String.format("jdbc:mysql://%s:%d/%s", dbhost, dbport, dbschema));
-//            dbpool.setUser(dbuser);
-//            dbpool.setPassword(dbpass);
-//            
-//            dbpool.setMinPoolSize(3);
-//            dbpool.setAcquireIncrement(5);
-//            dbpool.setMaxPoolSize(20);
+            ExecutorService threadpool = Executors.newFixedThreadPool(threads);
+            dbpool.setDriverClass("com.mysql.cj.jdbc.Driver");
+            dbpool.setJdbcUrl(String.format("jdbc:mysql://%s:%d/%s?&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC", dbhost, dbport, dbschema));
+            dbpool.setUser(dbuser);
+            dbpool.setPassword(dbpass);
+            
+            dbpool.setMinPoolSize(3);
+            dbpool.setAcquireIncrement(5);
+            dbpool.setMaxPoolSize(20);
             
             byte[] dataIn = new byte[1400];
             //ClientMessage msg;
@@ -98,6 +103,7 @@ public class Server extends Thread {
             //startMaintenance();
             
             loadServers();
+            requestRegistrations();
             
             while (true) {
                 try {
@@ -170,6 +176,8 @@ public class Server extends Thread {
         } catch (IOException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
+        
+        Logger.getLogger(Server.class.getName()).log(Level.INFO, "Properties loaded...");
     }
 
     public String getDbhost() {
@@ -229,12 +237,13 @@ public class Server extends Thread {
     
     private void loadServers() {
         try {
-            String sql = "SELECT id, serverkey, INET_NTOA(addr) AS ip, port, teleportname, map, name FROM server WHERE enabled = 1";
+            int i = 0;
+            String sql = "SELECT id, serverkey, INET_NTOA(addr) AS ip, port, password, teleportname, map, name FROM server WHERE enabled = 1";
             Connection conn = dbpool.getConnection();
             Statement st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
             Client cl;
-            
+            System.out.printf("Loading servers into memory...\n");
             while (rs.next()) {
                 cl = clients.get(rs.getString("serverkey"));
                 if (cl == null) {
@@ -244,6 +253,7 @@ public class Server extends Thread {
                     cl.setPort(rs.getInt("port"));
                     cl.setClientnum(rs.getInt("id"));
                     cl.setName(rs.getString("name"));
+                    cl.setRcon(rs.getString("password"));
                     try {
                         cl.setAddr(InetAddress.getByName(rs.getString("ip")));
                     } catch (UnknownHostException ex) {
@@ -258,15 +268,18 @@ public class Server extends Thread {
                     cl.setPort(rs.getInt("port"));
                     cl.setClientnum(rs.getInt("id"));
                     cl.setName(rs.getString("name"));
+                    cl.setRcon(rs.getString("password"));
                     try {
                         cl.setAddr(InetAddress.getByName(rs.getString("ip")));
                     } catch (UnknownHostException ex) {
                         Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
-                System.out.printf("Server loaded: %s:%d\n", cl.getAddr().getHostAddress(), cl.getPort());
-                
+                System.out.printf("\t%s:%d\n", cl.getAddr().getHostAddress(), cl.getPort());
+                i++;
             }
+            
+            System.out.printf("Done - %d loaded from database\n", i);
         } catch (SQLException ex) {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -323,5 +336,13 @@ public class Server extends Thread {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
         return null;
+    }
+    
+    public void requestRegistrations() {
+        Iterator<String> it = clients.keySet().iterator();
+
+        while (it.hasNext()) {
+            clients.get(it.next()).send("remote_register");
+        }
     }
 }

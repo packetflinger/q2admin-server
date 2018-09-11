@@ -33,7 +33,7 @@ public class Client {
     private String rcon;
     private int maxPlayers = 64;
     private Player[] players;
-    private String key;
+    private int key;
     private int clientnum;
     private int flags;
     private String name;
@@ -91,11 +91,11 @@ public class Client {
         this.players = players;
     }
 
-    public String getKey() {
+    public int getKey() {
         return key;
     }
 
-    public void setKey(String key) {
+    public void setKey(int key) {
         this.key = key;
     }
 

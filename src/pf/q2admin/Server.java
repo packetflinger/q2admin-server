@@ -61,10 +61,11 @@ public class Server extends Thread {
     private int dbport;
     
     private int cmd;
+    private int key;
     
     private ByteStream msg;
 
-    private HashMap<String, Client> clients;
+    private HashMap<Integer, Client> clients;
     
     private ComboPooledDataSource dbpool;
 
@@ -111,9 +112,12 @@ public class Server extends Thread {
                     socket.receive(receivePacket);
                     
                     msg = new ByteStream(receivePacket.getData(), 0);
-                    cmd = msg.readByte();
-                    System.out.printf("Msg type: %d\n", cmd);
                     
+                    key = msg.readLong();
+                    cmd = msg.readByte();
+                    System.out.printf("Msg type: %d from %d\n", cmd, key);
+                    
+                    cl = clients.get(key);
                     switch (cmd) {
                         case Server.CMD_REGISTER:
                             System.out.printf("%s\n", (new Registration(msg)).toString());
@@ -136,11 +140,11 @@ public class Server extends Thread {
         }
     }
 
-    public HashMap<String, Client> getClients() {
+    public HashMap<Integer, Client> getClients() {
         return clients;
     }
 
-    public Client getClient(String key) {
+    public Client getClient(int key) {
         return clients.get(key);
     }
 
@@ -245,10 +249,10 @@ public class Server extends Thread {
             Client cl;
             System.out.printf("Loading servers into memory...\n");
             while (rs.next()) {
-                cl = clients.get(rs.getString("serverkey"));
+                cl = clients.get(rs.getInt("serverkey"));
                 if (cl == null) {
                     cl = new Client();
-                    cl.setKey(rs.getString("serverkey"));
+                    cl.setKey(rs.getInt("serverkey"));
                     cl.setMap(rs.getString("map"));
                     cl.setPort(rs.getInt("port"));
                     cl.setClientnum(rs.getInt("id"));
@@ -263,7 +267,7 @@ public class Server extends Thread {
                     
                     clients.put(cl.getKey(), cl);
                 } else {
-                    cl.setKey(rs.getString("serverkey"));
+                    cl.setKey(rs.getInt("serverkey"));
                     cl.setMap(rs.getString("map"));
                     cl.setPort(rs.getInt("port"));
                     cl.setClientnum(rs.getInt("id"));
@@ -329,7 +333,7 @@ public class Server extends Thread {
             st.setString(1, tp);
             ResultSet rs = st.executeQuery();
             while (rs.next()) {
-                return getClient(rs.getString("serverkey"));
+                return getClient(rs.getInt("serverkey"));
             }
             
         } catch (SQLException ex) {
@@ -339,7 +343,7 @@ public class Server extends Thread {
     }
     
     public void requestRegistrations() {
-        Iterator<String> it = clients.keySet().iterator();
+        Iterator<Integer> it = clients.keySet().iterator();
 
         while (it.hasNext()) {
             clients.get(it.next()).send("remote_register");

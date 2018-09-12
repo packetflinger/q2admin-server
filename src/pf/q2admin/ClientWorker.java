@@ -58,20 +58,17 @@ public class ClientWorker implements Runnable {
                     handleRegister();
                     break;
                 
-                case Server.CMD_CONNECT:
-                    handlePlayerHeartbeat();
-                    break;
-                    
                 case Server.CMD_QUIT:
                     handleServerDisconnect();
                     break;
                     
-//                case Server.CMD_CONNECT:
-//                    handlePlayerConnect();
-//                    break;
-//                    
+                case Server.CMD_CONNECT:
+                    //handlePlayerHeartbeat();
+                    handlePlayerConnect();
+                    break;
+
                 case Server.CMD_DISCONNECT:
-                    handlePlayerDisconnect();
+                    //handlePlayerDisconnect();
                     break;
                     
 //                case Server.CMD_CONNECT:
@@ -83,7 +80,7 @@ public class ClientWorker implements Runnable {
                     break;
                     
                 case Server.CMD_TELEPORT:
-                    handleTeleport();
+                    //handleTeleport();
                     break;
             }
             
@@ -97,12 +94,14 @@ public class ClientWorker implements Runnable {
         int level = msg.readByte();
         String print = msg.readString();
 
+        System.out.printf("Print level: %d\t '%s'\n", level, print);
+        
         switch (level) {
             case Client.PRINT_CHAT:
                 handleChat();
                 break;
             case Client.PRINT_MEDIUM:
-                handleObituary();
+                //handleObituary();
                 break;
         }
     }
@@ -111,8 +110,10 @@ public class ClientWorker implements Runnable {
      * 
      */
     private void handleServerDisconnect() {
-        removeAllPlayers(cl);
+        //removeAllPlayers(cl);
+        cl.removePlayers();
         cl.setConnected(false);
+        System.out.printf("Server disconnect\n");
     }
     
     
@@ -227,18 +228,36 @@ public class ClientWorker implements Runnable {
 //    }
     
     private void handlePlayerDisconnect() {
-        try {
-            int id = msg.readByte();
-            String sql = "UPDATE player SET date_quit = NOW() WHERE id = ? LIMIT 1";
-            PreparedStatement st = db.prepareStatement(sql);
-            st.setInt(1, cl.getPlayers()[id].getDatabaseId());
-            st.executeUpdate();
-            
-            cl.getPlayers()[id] = null;
-            System.out.printf("Quit handled\n");
-        } catch (SQLException ex) {
-            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
-        }
+        int client_id = msg.readByte();
+        
+        cl.getPlayers()[client_id] = null;
+//        try {
+//            int id = msg.readByte();
+//            String sql = "UPDATE player SET date_quit = NOW() WHERE id = ? LIMIT 1";
+//            PreparedStatement st = db.prepareStatement(sql);
+//            st.setInt(1, cl.getPlayers()[id].getDatabaseId());
+//            st.executeUpdate();
+//            
+//            cl.getPlayers()[id] = null;
+//            System.out.printf("Quit handled\n");
+//        } catch (SQLException ex) {
+//            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+//        }
+        
+    }
+    
+    private void handlePlayerConnect() {
+        int client_id = msg.readByte();
+        String userinfo = msg.readString();
+        
+        System.out.printf("Player connected: (%d) %s\n",client_id, userinfo);
+        Player[] players = cl.getPlayers();
+        
+        Player p = new Player();
+        p.setClientId(client_id);
+        p.setUserInfo(userinfo);
+        
+        players[client_id] = p;
     }
     
     private void handlePlayerHeartbeat() {
@@ -327,14 +346,14 @@ public class ClientWorker implements Runnable {
      * @param cl 
      */
     private void removeAllPlayers(Client cl) {
-        try {
-            String sql = "UPDATE player SET date_quit = NOW() WHERE server = ? AND date_quit = '0000-00-00 00:00:00'";
-            PreparedStatement st = db.prepareStatement(sql);
-            st.setInt(1, cl.getClientnum());
-            st.executeUpdate();
-        } catch (SQLException ex) {
-            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
-        }
+//        try {
+//            String sql = "UPDATE player SET date_quit = NOW() WHERE server = ? AND date_quit = '0000-00-00 00:00:00'";
+//            PreparedStatement st = db.prepareStatement(sql);
+//            st.setInt(1, cl.getClientnum());
+//            st.executeUpdate();
+//        } catch (SQLException ex) {
+//            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+//        }
     }
     
     /**

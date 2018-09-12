@@ -6,6 +6,7 @@
 package pf.q2admin;
 
 import com.mchange.v2.c3p0.ComboPooledDataSource;
+import java.beans.PropertyVetoException;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -21,16 +22,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map.Entry;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import libq2.com.packet.ByteStream;
 import pf.q2admin.message.ClientMessage;
-import pf.q2admin.message.Registration;
 
 /**
  *
@@ -96,7 +94,7 @@ public class Server extends Thread {
             dbpool.setMaxPoolSize(20);
             
             byte[] dataIn = new byte[1400];
-            //ClientMessage msg;
+
             Client cl;
             
             System.out.printf("Listening on udp/%d\n", listen_port);
@@ -116,32 +114,20 @@ public class Server extends Thread {
                     key = msg.readLong();
                     cmd = msg.readByte();
                     
-                    System.out.printf("Msg type: %d from %d\n", cmd, key);
-                    
                     cl = clients.get(key);
                     if (cl == null) {
                         System.out.printf("unknown server, skipping\n");
                         continue;
                     }
                     
-                    switch (cmd) {
-                        case Server.CMD_REGISTER:
-                            cl.setRegistration(new Registration(msg));
-                    }
+                    new Thread(new ClientWorker(cmd, msg, cl, this)).start();
                     
-//                    msg = new ClientMessage(receivePacket);
-//                    if ((cl = getValidClient(msg)) != null) {
-//                        threadpool.execute(new ClientWorker(msg, cl, this));
-//                    } else {
-//                        System.out.printf("Invalid server: %s - %s\n", msg.getKey(), msg.getSource().getHostAddress());
-//                    }
                 } catch (IOException e) {
                     System.out.print(e.getMessage());
                 }
                 dataIn = new byte[1400];
             }
-        } catch (Exception ex) {        
-            //} catch (PropertyVetoException ex) {
+        } catch (PropertyVetoException ex) {        
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
@@ -313,15 +299,15 @@ public class Server extends Thread {
             case Server.CMD_DISCONNECT:
                 return "PDISC";
             case Server.CMD_CONNECT:
-                return "PHB";
+                return "PCON";
             case Server.CMD_PRINT:
                 return "PRNT";
             case Server.CMD_SEEN:
                 return "SEEN";
             case Server.CMD_QUIT:
-                return "SDISC";
+                return "QUIT";
             case Server.CMD_REGISTER:
-                return "SHB";
+                return "REG";
             case Server.CMD_TELEPORT:
                 return "TELE";
             case Server.CMD_WHOIS:

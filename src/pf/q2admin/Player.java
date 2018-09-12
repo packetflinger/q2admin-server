@@ -14,6 +14,7 @@ public class Player {
     private int clientId;
     private String userInfo;
     private int databaseId;
+    private String skin;
     
     private int frags       = 0;
     private int deaths      = 0;
@@ -44,6 +45,8 @@ public class Player {
 
     public void setUserInfo(String userInfo) {
         this.userInfo = userInfo;
+        setName(getInfo("name"));
+        setSkin(getInfo("skin"));
     }
 
     public int getFrags() {
@@ -63,7 +66,7 @@ public class Player {
     }
     
     public String getInfo(String key) {
-        String[] ui = userInfo.split("\\");
+        String[] ui = userInfo.split("\\\\");
         
         for (int i=0; i<ui.length; i++) {
             if (ui[i].toLowerCase().equals(key)) {
@@ -89,7 +92,13 @@ public class Player {
     public void setDeaths(int deaths) {
         this.deaths = deaths;
     }
-    
-    
+
+    public String getSkin() {
+        return skin;
+    }
+
+    public void setSkin(String skin) {
+        this.skin = skin;
+    }
 }
 

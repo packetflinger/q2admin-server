@@ -168,6 +168,10 @@ public class Client {
         return flags;
     }
 
+    public void removePlayers() {
+        players = new Player[getMaxPlayers() + 1];
+    }
+    
     public void setFlags(int flags) {
         this.flags = flags;
     }

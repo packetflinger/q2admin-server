@@ -15,6 +15,9 @@ public class Player {
     private String userInfo;
     private int databaseId;
     private String skin;
+    private String gender;
+    private int hand;
+    private String ip;
     
     private int frags       = 0;
     private int deaths      = 0;
@@ -47,6 +50,9 @@ public class Player {
         this.userInfo = userInfo;
         setName(getInfo("name"));
         setSkin(getInfo("skin"));
+        setIp(getInfo("ip"));
+        setHand(Integer.parseInt(getInfo("hand")));
+        setGender(getInfo("gender"));
     }
 
     public int getFrags() {
@@ -99,6 +105,30 @@ public class Player {
 
     public void setSkin(String skin) {
         this.skin = skin;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
+    }
+
+    public int getHand() {
+        return hand;
+    }
+
+    public void setHand(int hand) {
+        this.hand = hand;
+    }
+
+    public String getIp() {
+        return ip;
+    }
+
+    public void setIp(String ip) {
+        this.ip = ip;
     }
 }
 

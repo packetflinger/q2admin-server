@@ -13,12 +13,13 @@ import libq2.com.packet.ByteStream;
  */
 public final class Registration {
     private int port;
-    private String password;
+    private int maxclients;
+    private String map;
     
-    public Registration(ByteStream msg) {
-        
+    public Registration(ByteStream msg) {   
         setPort(msg.readShort());
-        setPassword(msg.readString());
+        setMaxclients(msg.readByte());
+        setMap(msg.readString());
     }
 
     public int getPort() {
@@ -29,16 +30,24 @@ public final class Registration {
         this.port = port;
     }
 
-    public String getPassword() {
-        return password;
+    public int getMaxclients() {
+        return maxclients;
     }
 
-    public void setPassword(String password) {
-        this.password = password;
-    } 
+    public void setMaxclients(int maxclients) {
+        this.maxclients = maxclients;
+    }
+
+    public String getMap() {
+        return map;
+    }
+
+    public void setMap(String map) {
+        this.map = map;
+    }
     
     @Override
     public String toString() {
-        return String.format("Registration:\nport = %d\npassword = %s\n", getPort(), getPassword());
+        return String.format("Registration:\nport = %d\nmap = %s\nmaxclients = %d\n", getPort(), getMap(), getMaxclients());
     }
 }

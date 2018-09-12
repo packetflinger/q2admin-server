@@ -115,12 +115,18 @@ public class Server extends Thread {
                     
                     key = msg.readLong();
                     cmd = msg.readByte();
+                    
                     System.out.printf("Msg type: %d from %d\n", cmd, key);
                     
                     cl = clients.get(key);
+                    if (cl == null) {
+                        System.out.printf("unknown server, skipping\n");
+                        continue;
+                    }
+                    
                     switch (cmd) {
                         case Server.CMD_REGISTER:
-                            System.out.printf("%s\n", (new Registration(msg)).toString());
+                            cl.setRegistration(new Registration(msg));
                     }
                     
 //                    msg = new ClientMessage(receivePacket);

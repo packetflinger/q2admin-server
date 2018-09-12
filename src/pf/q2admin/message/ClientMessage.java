@@ -14,7 +14,7 @@ import java.net.InetAddress;
  */
 public class ClientMessage {
     private String raw;
-    private String key;
+    private int key;
     private int operation;
     private String data;
     private InetAddress source;
@@ -24,16 +24,16 @@ public class ClientMessage {
         setRaw(new String(p.getData()));
         source = p.getAddress();
         String[] msg = getRaw().split("\\\\", 3);
-        setKey(msg[0]);
+        //setKey(msg[0]);
         setOperation(Integer.parseInt(msg[1]));
         setData(msg[2]);
     }
     
-    public String getKey() {
+    public int getKey() {
         return key;
     }
 
-    public final void setKey(String key) {
+    public final void setKey(int key) {
         this.key = key;
     }
 

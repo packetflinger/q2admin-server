@@ -12,6 +12,7 @@ import java.net.InetAddress;
 import java.net.SocketException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import pf.q2admin.message.Registration;
 import pf.q2admin.message.ServerHeartbeat;
 
 /**
@@ -27,11 +28,13 @@ public class Client {
     
     private boolean connected;
     
+    private Registration registration;
+    
     private InetAddress addr;
     private int port = 27910;
     private String map;
     private String rcon;
-    private int maxPlayers = 64;
+    private int maxClients = 64;
     private Player[] players;
     private int key;
     private int clientnum;
@@ -76,11 +79,11 @@ public class Client {
     }
 
     public int getMaxPlayers() {
-        return maxPlayers;
+        return maxClients;
     }
 
     public void setMaxPlayers(int maxPlayers) {
-        this.maxPlayers = maxPlayers;
+        this.maxClients = maxPlayers;
     }
 
     public Player[] getPlayers() {
@@ -97,18 +100,6 @@ public class Client {
 
     public void setKey(int key) {
         this.key = key;
-    }
-
-    public void setRegistration(ServerHeartbeat r) {
-        rcon = r.getRcon();
-        port = r.getPort();
-        map = r.getMap();
-        maxPlayers = r.getMaxplayers();
-        connected = true;
-        
-        if (players == null) {
-            players = new Player[maxPlayers + 10]; // leave some room
-        }
     }
     
     public Player getPlayerByName(String name) {
@@ -187,6 +178,22 @@ public class Client {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public Registration getRegistration() {
+        return registration;
+    }
+
+    public void setRegistration(Registration r) {
+        registration = r;
+        port = r.getPort();
+        map = r.getMap();
+        maxClients = r.getMaxclients();
+        connected = true;
+        
+        if (players == null) {
+            players = new Player[maxClients + 10]; // leave some room
+        }
     }
 }
 

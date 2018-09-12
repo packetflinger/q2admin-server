@@ -12,9 +12,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import pf.q2admin.message.ClientMessage;
+import libq2.com.packet.ByteStream;
 import pf.q2admin.message.ServerHeartbeat;
 import pf.q2admin.message.PlayerHeartbeat;
+import pf.q2admin.message.Registration;
 
 /**
  *
@@ -22,13 +23,15 @@ import pf.q2admin.message.PlayerHeartbeat;
  */
 public class ClientWorker implements Runnable {
     
-    ClientMessage msg;
+    int cmd;
+    ByteStream msg;
     Server parent;
     Connection db;
     Client cl;
-
-    public ClientWorker(ClientMessage msg, Client cl, Server parent) {
+    
+    public ClientWorker(int cmd, ByteStream msg, Client cl, Server parent) {
         try {
+            this.cmd = cmd;
             this.cl = cl;
             this.msg = msg;
             this.parent = parent;
@@ -38,7 +41,6 @@ public class ClientWorker implements Runnable {
         }
     }
     
-    
     /**
      * Starts this thread
      */
@@ -46,15 +48,14 @@ public class ClientWorker implements Runnable {
     public void run() {
         try {
             System.out.printf(
-                    "(%s) %s - %s\n",
+                    "(%s) %s\n",
                     Thread.currentThread().getName(),
-                    parent.getCmdString(msg.getOperation()),
-                    msg.getData()
+                    parent.getCmdString(cmd)
             );
             
-            switch (msg.getOperation()) {
+            switch (cmd) {
                 case Server.CMD_REGISTER:
-                    handleServerHeartbeat();
+                    handleRegister();
                     break;
                 
                 case Server.CMD_CONNECT:
@@ -93,8 +94,8 @@ public class ClientWorker implements Runnable {
     }
     
     private void handlePrint() {
-        String[] args = msg.getData().split("\\\\");
-        int level = Integer.parseInt(args[0]);
+        int level = msg.readByte();
+        String print = msg.readString();
 
         switch (level) {
             case Client.PRINT_CHAT:
@@ -105,35 +106,6 @@ public class ClientWorker implements Runnable {
                 break;
         }
     }
-    
-    /**
-     * Parse a registration message
-     * 
-     */
-    private void handleServerHeartbeat() {
-        try {
-            ServerHeartbeat rg = new ServerHeartbeat(msg.getData());
-            cl.setRegistration(rg);
-            
-            String sql = "UPDATE server SET "
-                    + "map = ?, "
-                    + "maxclients = ?, "
-                    + "flags = ?, "
-                    + "date_lastcontact = NOW() "
-                    + "WHERE serverkey = ? LIMIT 1";
-            PreparedStatement st = db.prepareStatement(sql);
-            st.setString(1, rg.getMap());
-            st.setInt(2, rg.getMaxplayers());
-            st.setInt(3, rg.getFlags());
-            st.setString(4, cl.getKey());
-            st.executeUpdate();
-            
-            cl.send("sv !ra_online");
-        } catch (SQLException ex) {
-            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
-        }  
-    }
-    
     
     /**
      * 
@@ -148,15 +120,15 @@ public class ClientWorker implements Runnable {
      * Called if the message sent is chat from a player
      */
     private void handleChat() {
-        Client client = parent.getClient(msg.getKey());
-        if (client == null) 
-            return;
-
-        String[] parts1 = msg.getData().split("\\\\");
-        int level = Integer.parseInt(parts1[0]);
-        String message = parts1[1];
-        
-        logChat(client, message);
+//        Client client = parent.getClient(msg.getKey());
+//        if (client == null) 
+//            return;
+//
+//        String[] parts1 = msg.getData().split("\\\\");
+//        int level = Integer.parseInt(parts1[0]);
+//        String message = parts1[1];
+//        
+//        logChat(client, message);
     }
     
     
@@ -173,9 +145,9 @@ public class ClientWorker implements Runnable {
     
     private void handleTeleport() {
         try {
-            String[] args = msg.getData().split("\\\\");
-            Client dest = parent.getClientFromTeleportName(args[1]);
-            
+//            String[] args = msg.getData().split("\\\\");
+//            Client dest = parent.getClientFromTeleportName(args[1]);
+            Client dest = null;
             if (dest != null) {
                 sendPlayer("Teleporting you to " + dest.getName());
                 stuffPlayer(String.format("connect %s:%d", dest.getAddr().getHostAddress(), dest.getPort()));
@@ -211,13 +183,13 @@ public class ClientWorker implements Runnable {
     }
     
     private void handleObituary() {
-        System.out.printf("Player size: %d\n", cl.getPlayers().length);
-        String obit = msg.getData().split("\\\\")[1];
-        String[] parts = obit.split(" ");
-        String message = obit.substring(parts[0].length() + 1);
-        
-        Player deadplayer = cl.getPlayerByName(parts[0]);
-        System.out.printf("Obit - dead: %s - msg: %s\n", deadplayer.getName(), message);
+//        System.out.printf("Player size: %d\n", cl.getPlayers().length);
+//        String obit = msg.getData().split("\\\\")[1];
+//        String[] parts = obit.split(" ");
+//        String message = obit.substring(parts[0].length() + 1);
+//        
+//        Player deadplayer = cl.getPlayerByName(parts[0]);
+//        System.out.printf("Obit - dead: %s - msg: %s\n", deadplayer.getName(), message);
     }
     
 //    private void handlePlayerConnect() {
@@ -256,7 +228,7 @@ public class ClientWorker implements Runnable {
     
     private void handlePlayerDisconnect() {
         try {
-            int id = Integer.parseInt(msg.getData().trim());
+            int id = msg.readByte();
             String sql = "UPDATE player SET date_quit = NOW() WHERE id = ? LIMIT 1";
             PreparedStatement st = db.prepareStatement(sql);
             st.setInt(1, cl.getPlayers()[id].getDatabaseId());
@@ -270,84 +242,82 @@ public class ClientWorker implements Runnable {
     }
     
     private void handlePlayerHeartbeat() {
-        try {
-            PlayerHeartbeat ui = new PlayerHeartbeat(msg.getData());
-            Player[] players = cl.getPlayers();
-            if (players != null) {
-                Player pl = players[ui.getClientid()];
-                if (pl != null) {
-                    if (!pl.getUserInfo().equals(ui.getUserinfo())) {
-                        String sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
-                            + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
-                        PreparedStatement st = db.prepareStatement(sql);
-                        st.setInt(1, cl.getClientnum());
-                        st.setInt(2, ui.getClientid());
-                        st.setString(3, ui.getName());
-                        st.setString(4, ui.getSkin());
-                        st.setInt(5, ui.getHand());
-                        st.setInt(6, ui.getFov());
-                        st.setString(7, ui.getIp());
-                        st.setString(8, ui.getUserinfo());
-
-                        st.executeUpdate();
-                        st.close();
-                        System.out.printf("Updating UserInfo: %s\n", ui.getUserinfo());
-                    }
-                }
-                
-                if (pl == null) {
-                    String sql = "INSERT INTO player (server, clientnum, name, date_joined, date_quit) VALUES (?,?,?,NOW(),'0000-00-00 00:00:00')";
-                    PreparedStatement st = db.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-                    st.setInt(1, cl.getClientnum());
-                    st.setInt(2, ui.getClientid());
-                    st.setString(3, ui.getName());
-                    st.executeUpdate();
-
-                    ResultSet r = st.getGeneratedKeys();
-                    if (r.next()) {
-                        Player p = new Player();
-                        p.setClientId(ui.getClientid());
-                        p.setName(ui.getName());
-                        p.setDatabaseId(r.getInt(1));
-                        p.setUserInfo(ui.getUserinfo());
-                        cl.getPlayers()[p.getClientId()] = p;
-                        
-                        sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
-                            + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
-                        PreparedStatement st2 = db.prepareStatement(sql);
-                        st2.setInt(1, cl.getClientnum());
-                        st2.setInt(2, ui.getClientid());
-                        st2.setString(3, ui.getName());
-                        st2.setString(4, ui.getSkin());
-                        st2.setInt(5, ui.getHand());
-                        st2.setInt(6, ui.getFov());
-                        st2.setString(7, ui.getIp());
-                        st2.setString(8, ui.getUserinfo());
-
-                        st2.executeUpdate();
-                        st2.close();
-                    }
-                }
-            }
-        } catch (SQLException ex) {
-            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
-        }      
+//        try {
+//            PlayerHeartbeat ui = new PlayerHeartbeat(msg.getData());
+//            Player[] players = cl.getPlayers();
+//            if (players != null) {
+//                Player pl = players[ui.getClientid()];
+//                if (pl != null) {
+//                    if (!pl.getUserInfo().equals(ui.getUserinfo())) {
+//                        String sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
+//                            + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
+//                        PreparedStatement st = db.prepareStatement(sql);
+//                        st.setInt(1, cl.getClientnum());
+//                        st.setInt(2, ui.getClientid());
+//                        st.setString(3, ui.getName());
+//                        st.setString(4, ui.getSkin());
+//                        st.setInt(5, ui.getHand());
+//                        st.setInt(6, ui.getFov());
+//                        st.setString(7, ui.getIp());
+//                        st.setString(8, ui.getUserinfo());
+//
+//                        st.executeUpdate();
+//                        st.close();
+//                        System.out.printf("Updating UserInfo: %s\n", ui.getUserinfo());
+//                    }
+//                }
+//                
+//                if (pl == null) {
+//                    String sql = "INSERT INTO player (server, clientnum, name, date_joined, date_quit) VALUES (?,?,?,NOW(),'0000-00-00 00:00:00')";
+//                    PreparedStatement st = db.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
+//                    st.setInt(1, cl.getClientnum());
+//                    st.setInt(2, ui.getClientid());
+//                    st.setString(3, ui.getName());
+//                    st.executeUpdate();
+//
+//                    ResultSet r = st.getGeneratedKeys();
+//                    if (r.next()) {
+//                        Player p = new Player();
+//                        p.setClientId(ui.getClientid());
+//                        p.setName(ui.getName());
+//                        p.setDatabaseId(r.getInt(1));
+//                        p.setUserInfo(ui.getUserinfo());
+//                        cl.getPlayers()[p.getClientId()] = p;
+//                        
+//                        sql = "INSERT INTO userinfo (server, clientnum, infodate, name, skin, hand, fov, ip, info) "
+//                            + "VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?)";
+//                        PreparedStatement st2 = db.prepareStatement(sql);
+//                        st2.setInt(1, cl.getClientnum());
+//                        st2.setInt(2, ui.getClientid());
+//                        st2.setString(3, ui.getName());
+//                        st2.setString(4, ui.getSkin());
+//                        st2.setInt(5, ui.getHand());
+//                        st2.setInt(6, ui.getFov());
+//                        st2.setString(7, ui.getIp());
+//                        st2.setString(8, ui.getUserinfo());
+//
+//                        st2.executeUpdate();
+//                        st2.close();
+//                    }
+//                }
+//            }
+//        } catch (SQLException ex) {
+//            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+//        }      
     }
     
     private void sendPlayer(String privateMsg) {
-        Client client = parent.getClient(msg.getKey());
-        if (client == null) 
+        if (cl == null) 
             return;
 
-        client.send(String.format("sv !say_person CL %d %s", msg.getClientid(), privateMsg));
+        //cl.send(String.format("sv !say_person CL %d %s", msg.readByte(), privateMsg));
     }
     
     private void stuffPlayer(String cmd) {
-        Client client = parent.getClient(msg.getKey());
-        if (client == null) 
+        if (cl == null) 
             return;
 
-        client.send(String.format("sv !stuff CL %d %s", msg.getClientid(), cmd));
+        //cl.send(String.format("sv !stuff CL %d %s", msg.readByte(), cmd));
     }
     
     
@@ -396,6 +366,11 @@ public class ClientWorker implements Runnable {
         } catch (SQLException ex) {
             Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
         }
+    }
+    
+    private void handleRegister() {
+        cl.setRegistration(new Registration(msg));
+        cl.send("sv !ra_online");
     }
 }
 

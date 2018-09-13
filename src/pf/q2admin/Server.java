@@ -338,7 +338,7 @@ public class Server extends Thread {
         Iterator<Integer> it = clients.keySet().iterator();
 
         while (it.hasNext()) {
-            clients.get(it.next()).send("remote_register");
+            clients.get(it.next()).send("sv !remote_register");
         }
     }
 }

@@ -74,6 +74,10 @@ public class Player {
     public String getInfo(String key) {
         String[] ui = userInfo.split("\\\\");
         
+        if (ui.length == 0) {
+            return null;
+        }
+        
         for (int i=0; i<ui.length; i++) {
             if (ui[i].toLowerCase().equals(key)) {
                 return ui[i+1];

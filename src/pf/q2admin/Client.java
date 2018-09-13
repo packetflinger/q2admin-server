@@ -13,7 +13,6 @@ import java.net.SocketException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import pf.q2admin.message.Registration;
-import pf.q2admin.message.ServerHeartbeat;
 
 /**
  *

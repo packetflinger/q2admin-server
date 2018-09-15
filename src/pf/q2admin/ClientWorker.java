@@ -263,7 +263,7 @@ public class ClientWorker implements Runnable {
     
     private void handleRegister() {
         cl.setRegistration(new Registration(msg));
-        cl.send("sv !ra_online");
+        cl.send("sv !remote_online");
     }
 }
 

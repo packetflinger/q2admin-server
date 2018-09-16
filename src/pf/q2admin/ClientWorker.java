@@ -135,23 +135,31 @@ public class ClientWorker implements Runnable {
         
     }
     
-    
+    /**
+     * When a player uses the teleport command with no argument, they're given a list of available
+     * servers to choose from or are stuffed with a connect command if they specify which
+     * server to connect to.
+     * 
+     */
     private void handleTeleport() {
         int client_id = msg.readByte();
         String lookup = msg.readString();
         Player caller = cl.getPlayers()[client_id];
         Client q2srv;
         int srvcount = 0;
-        String buffer = "";
+        String buffer;
         
         // list possible servers and give usage info
         if (lookup.equals("")) {
-            buffer = String.format("sv !say_person CL %d Usage: !teleport <name>\nAvailable servers:\n", client_id);
+            buffer = String.format("sv !say_person CL %d Available servers:\n", client_id);
+            cl.send(buffer);
+            
             while ((q2srv = parent.getClients().next()) != null) {
-                buffer += String.format("\t%s\t%s\n", q2srv.getTeleportname(), q2srv.getName());
+                buffer = String.format("sv !say_person CL %d %s       [%s]\n", client_id, q2srv.getTeleportname(), q2srv.getName());
+                cl.send(buffer);
             }
             
-            //System.out.printf("", args);
+            buffer = String.format("sv !say_person CL %d Usage: !teleport <name>", client_id);
             cl.send(buffer);
         } else {
             while ((q2srv = parent.getClients().next()) != null) {

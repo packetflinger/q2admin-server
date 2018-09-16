@@ -63,7 +63,8 @@ public class Server extends Thread {
     
     private ByteStream msg;
 
-    private HashMap<Integer, Client> clients;
+    //private HashMap<Integer, Client> clients;
+    private ServerList gameservers;
     
     private ComboPooledDataSource dbpool;
 
@@ -77,7 +78,8 @@ public class Server extends Thread {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        clients = new HashMap();
+        //clients = new HashMap();
+        gameservers = new ServerList();
     }
 
     @Override
@@ -114,7 +116,7 @@ public class Server extends Thread {
                     key = msg.readLong();
                     cmd = msg.readByte();
                     
-                    cl = clients.get(key);
+                    cl = gameservers.get(key);
                     if (cl == null) {
                         System.out.printf("unknown server, skipping\n");
                         continue;
@@ -132,16 +134,16 @@ public class Server extends Thread {
         }
     }
 
-    public HashMap<Integer, Client> getClients() {
-        return clients;
+    public ServerList getClients() {
+        return gameservers;
     }
 
     public Client getClient(int key) {
-        return clients.get(key);
+        return gameservers.get(key);
     }
 
     public Client getValidClient(ClientMessage msg) {
-        Client cl = clients.get(msg.getKey());
+        Client cl = gameservers.get(msg.getKey());
         if (cl != null) {
             return cl.getAddr().getHostAddress().equals(msg.getSource().getHostAddress()) ? cl : null;
         }
@@ -241,7 +243,7 @@ public class Server extends Thread {
             Client cl;
             System.out.printf("Loading servers into memory...\n");
             while (rs.next()) {
-                cl = clients.get(rs.getInt("serverkey"));
+                cl = gameservers.get(rs.getInt("serverkey"));
                 if (cl == null) {
                     cl = new Client();
                     cl.setKey(rs.getInt("serverkey"));
@@ -250,6 +252,8 @@ public class Server extends Thread {
                     cl.setClientnum(rs.getInt("id"));
                     cl.setName(rs.getString("name"));
                     cl.setRcon(rs.getString("password"));
+                    cl.setTeleportname(rs.getString("teleportname"));
+                    
                     try {
                         cl.setAddr(InetAddress.getByName(rs.getString("ip")));
                     } catch (UnknownHostException ex) {
@@ -257,7 +261,7 @@ public class Server extends Thread {
                         continue;
                     }
                     
-                    clients.put(cl.getKey(), cl);
+                    gameservers.add(cl.getKey(), cl);
                 } else {
                     cl.setKey(rs.getInt("serverkey"));
                     cl.setMap(rs.getString("map"));
@@ -271,7 +275,7 @@ public class Server extends Thread {
                         Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
                     }
                 }
-                System.out.printf("\t%s:%d\n", cl.getAddr().getHostAddress(), cl.getPort());
+                System.out.printf("\t%s:%d (%s)\n", cl.getAddr().getHostAddress(), cl.getPort(), cl.getTeleportname());
                 i++;
             }
             
@@ -335,10 +339,9 @@ public class Server extends Thread {
     }
     
     public void requestRegistrations() {
-        Iterator<Integer> it = clients.keySet().iterator();
-
-        while (it.hasNext()) {
-            clients.get(it.next()).send("sv !remote_register");
+        Client c;
+        while ((c = gameservers.next()) != null) {
+            c.send("sv !remote_register");
         }
     }
 }

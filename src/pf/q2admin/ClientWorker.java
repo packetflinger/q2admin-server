@@ -9,6 +9,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import libq2.com.packet.ByteStream;
@@ -72,7 +73,7 @@ public class ClientWorker implements Runnable {
                     break;
                     
                 case Server.CMD_TELEPORT:
-                    //handleTeleport();
+                    handleTeleport();
                     break;
             }
             
@@ -136,39 +137,38 @@ public class ClientWorker implements Runnable {
     
     
     private void handleTeleport() {
-        try {
-            Client dest = null;
-            if (dest != null) {
-                sendPlayer("Teleporting you to " + dest.getName());
-                stuffPlayer(String.format("connect %s:%d", dest.getAddr().getHostAddress(), dest.getPort()));
-                return;
+        int client_id = msg.readByte();
+        String lookup = msg.readString();
+        Player caller = cl.getPlayers()[client_id];
+        Client q2srv;
+        int srvcount = 0;
+        String buffer = "";
+        
+        if (lookup.equals("")) {
+            buffer = String.format("sv !say_person CL %d Usage: !teleport <name>\nAvailable servers:\n", client_id);
+            while ((q2srv = parent.getClients().next()) != null) {
+                buffer += String.format("\t%s\t%s\n", q2srv.getTeleportname(), q2srv.getName());
             }
             
-            String emptyservers = "";
-            String activeservers = "";
-            
-            String sql = "SELECT teleportname FROM server WHERE enabled = 1 AND playercount = 0 ORDER BY teleportname ASC";
-            PreparedStatement st = db.prepareStatement(sql);
-            ResultSet rs = st.executeQuery();
-            
-            while (rs.next()) {
-                emptyservers += rs.getString("teleportname") + ", ";
+            //System.out.printf("", args);
+            cl.send(buffer);
+        } else {
+            while ((q2srv = parent.getClients().next()) != null) {
+                if (q2srv.getTeleportname().equalsIgnoreCase(lookup)){
+                    String addr = String.format("%s:%d", q2srv.getAddr().getHostAddress(), q2srv.getPort());
+                    buffer = String.format("sv !say_person CL %d Teleporting you to '%s [%s]'", 
+                            client_id, 
+                            q2srv.getName(), 
+                            addr
+                    );
+                    cl.send(buffer);
+                    cl.send(String.format("sv !stuff %d %s", client_id, addr));
+                    return;
+                }
             }
-            
-            if (!emptyservers.equals("")) {
-                emptyservers = emptyservers.substring(0, emptyservers.length()-2);
-                sendPlayer("Empty Servers: " + emptyservers);
-            }
-            
-            sql = "SELECT id, teleportname, map FROM server WHERE enabled = 1 AND playercount > 0 ORDER BY teleportname ASC";
-            st = db.prepareStatement(sql);
-            rs = st.executeQuery();
-            while (rs.next()) {
-                sql = "";
-            } 
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+      
+            buffer = String.format("sv !say_person CL %d No server matching '%s' was found", client_id, lookup);
+            cl.send(buffer);
         }
     }
     

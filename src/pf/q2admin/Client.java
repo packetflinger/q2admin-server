@@ -39,6 +39,7 @@ public class Client {
     private int clientnum;
     private int flags;
     private String name;
+    private String teleportname;
     
     private DatagramSocket socket;
     
@@ -198,5 +199,22 @@ public class Client {
             players = new Player[maxClients + 10]; // leave some room
         }
     }
+
+    public int getMaxClients() {
+        return maxClients;
+    }
+
+    public void setMaxClients(int maxClients) {
+        this.maxClients = maxClients;
+    }
+
+    public String getTeleportname() {
+        return teleportname;
+    }
+
+    public void setTeleportname(String teleportname) {
+        this.teleportname = teleportname;
+    }
+    
 }
 

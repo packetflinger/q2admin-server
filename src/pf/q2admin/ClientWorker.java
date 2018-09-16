@@ -153,9 +153,15 @@ public class ClientWorker implements Runnable {
         if (lookup.equals("")) {
             buffer = String.format("sv !say_person CL %d Available servers:\n", client_id);
             cl.send(buffer);
-            
+            String here = "";
             while ((q2srv = parent.getClients().next()) != null) {
-                buffer = String.format("sv !say_person CL %d %s       [%s]\n", client_id, q2srv.getTeleportname(), q2srv.getName());
+                if (q2srv.getAddress().equals(cl.getAddress())) {
+                    here = "<--- you are here";
+                } else {
+                    here = "";
+                }
+                
+                buffer = String.format("sv !say_person CL %d %s       [%s] %s\n", client_id, q2srv.getTeleportname(), q2srv.getName(), here);
                 cl.send(buffer);
             }
             
@@ -164,14 +170,13 @@ public class ClientWorker implements Runnable {
         } else {
             while ((q2srv = parent.getClients().next()) != null) {
                 if (q2srv.getTeleportname().equalsIgnoreCase(lookup)){
-                    String addr = String.format("%s:%d", q2srv.getAddr().getHostAddress(), q2srv.getPort());
                     buffer = String.format("sv !say_person CL %d Teleporting you to '%s [%s]'", 
                             client_id, 
                             q2srv.getName(), 
-                            addr
+                            q2srv.getAddress()
                     );
                     cl.send(buffer);
-                    cl.send(String.format("sv !stuff CL %d connect %s", client_id, addr));
+                    cl.send(String.format("sv !stuff CL %d connect %s", client_id, q2srv.getAddress()));
                     return;
                 }
             }

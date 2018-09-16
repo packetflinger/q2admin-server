@@ -49,6 +49,16 @@ public class Client {
     public InetAddress getAddr() {
         return addr;
     }
+    
+    /**
+     * Full ip:port of this client as a string. 
+     * Ex: 10.2.3.2:27910
+     * 
+     * @return 
+     */
+    public String getAddress() {
+        return String.format("%s:%d", addr.getHostAddress(), port);
+    }
 
     public void setAddr(InetAddress addr) {
         this.addr = addr;

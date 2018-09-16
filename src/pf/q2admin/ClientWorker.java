@@ -144,6 +144,7 @@ public class ClientWorker implements Runnable {
         int srvcount = 0;
         String buffer = "";
         
+        // list possible servers and give usage info
         if (lookup.equals("")) {
             buffer = String.format("sv !say_person CL %d Usage: !teleport <name>\nAvailable servers:\n", client_id);
             while ((q2srv = parent.getClients().next()) != null) {
@@ -162,7 +163,7 @@ public class ClientWorker implements Runnable {
                             addr
                     );
                     cl.send(buffer);
-                    cl.send(String.format("sv !stuff %d %s", client_id, addr));
+                    cl.send(String.format("sv !stuff CL %d connect %s", client_id, addr));
                     return;
                 }
             }

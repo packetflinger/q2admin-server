@@ -19,6 +19,10 @@ import pf.q2admin.message.Registration;
  */
 public class ClientWorker implements Runnable {
     
+    public static int PAD_RIGHT = 1;
+    public static int PAD_LEFT = -1;
+    public static int PAD_CENTER = 0;
+    
     int cmd;
     ByteStream msg;
     Server parent;
@@ -81,6 +85,10 @@ public class ClientWorker implements Runnable {
                 case Server.CMD_TELEPORT:
                     handleTeleport();
                     break;
+                
+                case Server.CMD_PLAYERS:
+                    handlePlayers();
+                    break;
             }
             
             db.close();
@@ -139,15 +147,13 @@ public class ClientWorker implements Runnable {
     private void handleTeleport() {
         int client_id = msg.readByte();
         String lookup = msg.readString();
-        Player caller = cl.getPlayers()[client_id];
         Client q2srv;
-        int srvcount = 0;
-        String buffer;
+        
+        sayPlayerLow(client_id, "");
         
         // list possible servers and give usage info
         if (lookup.equals("")) {
-            buffer = String.format("sv !say_person CL %d Available servers:\n", client_id);
-            cl.send(buffer);
+            sayPlayerLow(client_id, "Available servers:");
             String here = "";
             while ((q2srv = parent.getClients().next()) != null) {
                 if (q2srv.getAddress().equals(cl.getAddress())) {
@@ -156,28 +162,27 @@ public class ClientWorker implements Runnable {
                     here = "";
                 }
                 
-                buffer = String.format("sv !say_person CL %d %s       [%s] %s\n", client_id, q2srv.getTeleportname(), q2srv.getName(), here);
-                cl.send(buffer);
+                sayPlayerLow(client_id, 
+                        String.format("%s \t%s\t", 
+                                pad(PAD_RIGHT, 25, q2srv.getTeleportname()),
+                                q2srv.getName()
+                        )
+                );
             }
             
-            buffer = String.format("sv !say_person CL %d Usage: !teleport <name>", client_id);
-            cl.send(buffer);
+            sayPlayerLow(client_id, "");
+            sayPlayerLow(client_id, "Usage: !teleport <name>");
+            
         } else {
             while ((q2srv = parent.getClients().next()) != null) {
                 if (q2srv.getTeleportname().equalsIgnoreCase(lookup)){
-                    buffer = String.format("sv !say_person CL %d Teleporting you to '%s [%s]'", 
-                            client_id, 
-                            q2srv.getName(), 
-                            q2srv.getAddress()
-                    );
-                    cl.send(buffer);
-                    cl.send(String.format("sv !stuff CL %d connect %s", client_id, q2srv.getAddress()));
+                    sayPlayerLow(client_id, String.format("Sending you to %s (%s)", q2srv.getName(), q2srv.getAddress()));
+                    stuffPlayer(client_id, String.format("connect %s", q2srv.getAddress()));
                     return;
                 }
             }
-      
-            buffer = String.format("sv !say_person CL %d No server matching '%s' was found", client_id, lookup);
-            cl.send(buffer);
+            
+            sayPlayerLow(client_id, String.format("No server matching '%s' was found", lookup));
         }
     }
     
@@ -202,24 +207,52 @@ public class ClientWorker implements Runnable {
         p.setClientId(client_id);
         p.setUserInfo(userinfo);
         
-        //players[client_id] = p;
         cl.getPlayers()[client_id] = p;
         System.out.printf("Client Connected - %s (%d)\n", p.getName(), p.getClientId());
     }
     
     
-    private void sendPlayer(String privateMsg) {
+    /**
+     * Send text to a specific client as a private message
+     * 
+     * @param privateMsg 
+     */
+    private void sayPlayer(int client_id, String privateMsg) {
         if (cl == null) 
             return;
-
-        //cl.send(String.format("sv !say_person CL %d %s", msg.readByte(), privateMsg));
+        
+        String buffer = String.format("sv !say_person CL %d %s", client_id, privateMsg);
+        cl.send(buffer);
     }
     
-    private void stuffPlayer(String cmd) {
+    
+    /**
+     * Send low level text to a player
+     * 
+     * @param client_id
+     * @param msg 
+     */
+    private void sayPlayerLow(int client_id, String msg) {
         if (cl == null) 
             return;
-
-        //cl.send(String.format("sv !stuff CL %d %s", msg.readByte(), cmd));
+        
+        String buffer = String.format("sv !say_person_low CL %d %s", client_id, msg);
+        cl.send(buffer);
+    }
+    
+    
+    /**
+     * Force a command into a player's buffer
+     * 
+     * @param client_id
+     * @param txt 
+     */
+    private void stuffPlayer(int client_id, String txt) {
+        if (cl == null) 
+            return;
+        
+        String buffer = String.format("sv !stuff CL %d %s", client_id, txt);
+        cl.send(buffer);
     }
     
     
@@ -305,6 +338,11 @@ public class ClientWorker implements Runnable {
         }
     }
     
+    
+    /**
+     * Called when a player userinfo changes (name, skin, fov, hand, uf, etc..)
+     * 
+     */
     private void handlePlayerUpdate() {
         int client_id = msg.readByte();
         String userinfo = msg.readString();
@@ -319,6 +357,63 @@ public class ClientWorker implements Runnable {
         } catch (ArrayIndexOutOfBoundsException e) {
             e.printStackTrace(System.err);
         }
+    }
+    
+    
+    /**
+     * Respond to a player issuing the !players <server> command
+     * 
+     */
+    private void handlePlayers() {
+        int client_id = msg.readByte();
+        String srv = msg.readString();
+        String buf;
+        int count = 0;
+        
+        Client gameserver = parent.getClients().getByName(srv);
+        if (gameserver == null) {
+            sayPlayerLow(client_id, String.format("Unknown server '%s'", srv));
+            return;
+        }
+        
+        Player[] plist = gameserver.getPlayers();
+        for (int i=0; i<gameserver.getClientnum(); i++) {
+            if (plist[i] == null)
+                continue;
+
+            sayPlayerLow(client_id, String.format("%s (%s)\n",
+                    pad(PAD_RIGHT, 15, plist[i].getName()),
+                    plist[i].getSkin())
+            );
+            count++;
+        }
+        
+        sayPlayerLow(client_id, String.format("- %d players found on %s -", count, gameserver.getTeleportname()));
+    }
+    
+    private String pad (int direction, int size, String txt) {
+        String newstr = "";
+        int len = txt.length();
+        
+        if (direction > 0) {
+            newstr += txt;
+            for (int i = len; i<size; i++) {
+                newstr += " ";
+            }
+            
+            return newstr;
+        }
+        
+        if (direction < 0) {
+            for (int i = len; i<size; i++) {
+                newstr += " ";
+            }
+            newstr += txt;
+            
+            return newstr;
+        }
+        
+        return txt;
     }
 }
 

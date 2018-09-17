@@ -9,7 +9,7 @@ package pf.q2admin;
  *
  * @author joe
  */
-public class Player {
+public final class Player {
     private String name;
     private int clientId;
     private String userInfo;
@@ -24,6 +24,11 @@ public class Player {
     private int suicides    = 0;
 
     public Player() {
+    }
+    
+    public Player(int id, String ui) {
+        setClientId(id);
+        setUserInfo(ui);
     }
 
     public String getName() {

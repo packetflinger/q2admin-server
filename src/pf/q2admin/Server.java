@@ -20,8 +20,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -41,11 +39,12 @@ public class Server extends Thread {
             CMD_CONNECT = 2,
             CMD_DISCONNECT = 3,
             CMD_PLAYERLIST = 4,
-            CMD_PRINT = 5,
-            CMD_TELEPORT = 6,
-            CMD_INVITE = 7,
-            CMD_SEEN = 8,
-            CMD_WHOIS = 9;
+            CMD_PLAYERUPDATE = 5,
+            CMD_PRINT = 6,
+            CMD_TELEPORT = 7,
+            CMD_INVITE = 8,
+            CMD_SEEN = 9,
+            CMD_WHOIS = 10;
 
     private DatagramSocket socket = null;
     private int listen_port;
@@ -316,6 +315,10 @@ public class Server extends Thread {
                 return "TELE";
             case Server.CMD_WHOIS:
                 return "WHOIS";
+            case Server.CMD_PLAYERLIST:
+                return "PLYLST";
+            case Server.CMD_PLAYERUPDATE:
+                return "PLYUPD";
             default:
                 return "UNKN";
         }

@@ -7,9 +7,7 @@ package pf.q2admin;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import libq2.com.packet.ByteStream;
@@ -56,6 +54,14 @@ public class ClientWorker implements Runnable {
                     handleRegister();
                     break;
                 
+                case Server.CMD_PLAYERLIST:
+                    handlePlayerlist();
+                    break;
+                
+                case Server.CMD_PLAYERUPDATE:
+                    handlePlayerUpdate();
+                    break;
+                    
                 case Server.CMD_QUIT:
                     handleServerDisconnect();
                     break;
@@ -122,17 +128,6 @@ public class ClientWorker implements Runnable {
 //        String message = parts1[1];
 //        
 //        logChat(client, message);
-    }
-    
-    
-    /**
-     * Stuff a connection string to the supplied player for a new server
-     * 
-     * @param player
-     * @param dest 
-     */
-    private void teleport(Player player, String dest) {
-        
     }
     
     /**
@@ -275,9 +270,55 @@ public class ClientWorker implements Runnable {
         }
     }
     
+    /**
+     * Record the game server's registration, let it know it's connected and request
+     * a list of players in case players were already connected when RA was initialized
+     * 
+     */
     private void handleRegister() {
         cl.setRegistration(new Registration(msg));
         cl.send("sv !remote_online");
+        cl.send("sv !remote_playerlist");
+    }
+    
+    /**
+     * 
+     */
+    private void handlePlayerlist() {
+        int client_id;
+        String userinfo;
+        
+        for (int i=0; i<msg.readByte(); i++) {
+            client_id = msg.readByte();
+            userinfo = msg.readString();
+            
+            try {
+                cl.getPlayers()[client_id] = new Player(client_id, userinfo);
+                System.out.printf("\t[%d] %s (%s)\n",
+                    client_id,
+                    cl.getPlayers()[client_id].getName(),
+                    cl.getPlayers()[client_id].getIp()
+                );
+            } catch (ArrayIndexOutOfBoundsException e) {
+                e.printStackTrace(System.err);
+            }
+        }
+    }
+    
+    private void handlePlayerUpdate() {
+        int client_id = msg.readByte();
+        String userinfo = msg.readString();
+            
+        try {
+            cl.getPlayers()[client_id] = new Player(client_id, userinfo);
+            System.out.printf("\t[%d] %s updated (%s)\n",
+                client_id,
+                cl.getPlayers()[client_id].getName(),
+                cl.getPlayers()[client_id].getIp()
+            );
+        } catch (ArrayIndexOutOfBoundsException e) {
+            e.printStackTrace(System.err);
+        }
     }
 }
 

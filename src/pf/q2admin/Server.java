@@ -45,7 +45,8 @@ public class Server extends Thread {
             CMD_INVITE = 8,
             CMD_SEEN = 9,
             CMD_WHOIS = 10,
-            CMD_PLAYERS = 11;   // 
+            CMD_PLAYERS = 11,   // 
+            CMD_FRAG = 12;
 
     private DatagramSocket socket = null;
     private int listen_port;
@@ -322,6 +323,8 @@ public class Server extends Thread {
                 return "PLYUPD";
             case Server.CMD_PLAYERS:
                 return "PLYRS";
+            case Server.CMD_FRAG:
+                return "FRAG";
             default:
                 return "UNKN";
         }

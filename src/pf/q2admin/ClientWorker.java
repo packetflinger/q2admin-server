@@ -8,6 +8,13 @@ package pf.q2admin;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.FormatStyle;
+import java.util.Locale;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import libq2.com.packet.ByteStream;
@@ -29,6 +36,9 @@ public class ClientWorker implements Runnable {
     Connection db;
     Client cl;
     
+    DateTimeFormatter dateformat;
+    ZonedDateTime   zdt;
+    
     public ClientWorker(int cmd, ByteStream msg, Client cl, Server parent) {
         try {
             this.cmd = cmd;
@@ -36,6 +46,15 @@ public class ClientWorker implements Runnable {
             this.msg = msg;
             this.parent = parent;
             db = parent.getConnection();
+            
+            dateformat = DateTimeFormatter
+                    //.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US);
+                    .ofLocalizedDateTime(FormatStyle.LONG)
+                    .withLocale(Locale.US)
+                    .withZone(ZoneId.systemDefault());
+            zdt = ZonedDateTime.now(ZoneId.systemDefault());
+                    
+            
         } catch (SQLException ex) {
             Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
         }
@@ -89,6 +108,18 @@ public class ClientWorker implements Runnable {
                 case Server.CMD_PLAYERS:
                     handlePlayers();
                     break;
+                    
+                case Server.CMD_INVITE:
+                    handleInvite();
+                    break;
+                    
+                case Server.CMD_WHOIS:
+                    handleWhois();
+                    break;
+                    
+                case Server.CMD_FRAG:
+                    handleFrag();
+                    break;
             }
             
             db.close();
@@ -98,12 +129,7 @@ public class ClientWorker implements Runnable {
     }
     
     private void handlePrint() {
-        int level = msg.readByte();
-        String print = msg.readString();
-
-        System.out.printf("Print level: %d\t '%s'\n", level, print);
-        
-        switch (level) {
+        switch (msg.readByte()) {
             case Client.PRINT_CHAT:
                 handleChat();
                 break;
@@ -127,15 +153,15 @@ public class ClientWorker implements Runnable {
      * Called if the message sent is chat from a player
      */
     private void handleChat() {
-//        Client client = parent.getClient(msg.getKey());
-//        if (client == null) 
-//            return;
-//
-//        String[] parts1 = msg.getData().split("\\\\");
-//        int level = Integer.parseInt(parts1[0]);
-//        String message = parts1[1];
-//        
-//        logChat(client, message);
+       
+        String print = msg.readString();
+        cl.getChats().add(print);
+        
+        // queue is full, write to database and clear it
+        if (cl.getChats().isFull()) {
+            cl.getChats().writeToDatabase(db);
+            cl.getChats().clear();
+        }
     }
     
     /**
@@ -203,12 +229,12 @@ public class ClientWorker implements Runnable {
         int client_id = msg.readByte();
         String userinfo = msg.readString();
         
-        Player p = new Player();
-        p.setClientId(client_id);
-        p.setUserInfo(userinfo);
+        cl.getPlayers()[client_id] = new Player(client_id, userinfo);
         
-        cl.getPlayers()[client_id] = p;
-        System.out.printf("Client Connected - %s (%d)\n", p.getName(), p.getClientId());
+        System.out.printf("Client Connected - %s (%d)\n", 
+                cl.getPlayers()[client_id].getName(), 
+                cl.getPlayers()[client_id].getClientId()
+        );
     }
     
     
@@ -391,6 +417,15 @@ public class ClientWorker implements Runnable {
         sayPlayerLow(client_id, String.format("- %d players found on %s -", count, gameserver.getTeleportname()));
     }
     
+    
+    /**
+     * Added leading/trailing spaces to a string to make it a total size given
+     * 
+     * @param direction - add padding to right or left
+     * @param size
+     * @param txt
+     * @return 
+     */
     private String pad (int direction, int size, String txt) {
         String newstr = "";
         int len = txt.length();
@@ -414,6 +449,56 @@ public class ClientWorker implements Runnable {
         }
         
         return txt;
+    }
+    
+    
+    /**
+     * When someone uses the invite command
+     * 
+     */
+    private void handleInvite() {
+        int client_id = msg.readByte();
+        String invitetxt = msg.readString();
+        
+        if (invitetxt.equals("")) {
+            invitetxt = String.format("type '!teleport %s' to join", cl.getTeleportname());
+        }
+        
+        String txt = String.format("%s invites you to join #%s: %s\n",
+                cl.getPlayer(client_id).getName(),
+                cl.getTeleportname(),
+                invitetxt
+        );
+        
+        String stuff;
+        Client gameserver;
+        while ((gameserver = parent.getClients().next()) != null) {
+            // if flags allow it...
+            stuff = String.format("say %s", txt);
+            gameserver.send(stuff);
+        }
+    }
+    
+    
+    private void handleWhois() {
+        int client_id = msg.readByte();
+        String lookup = msg.readString();
+        
+        // find local player, get address
+        // lookup address in database to get aliases
+        sayPlayerLow(client_id, "Whois functions are not allowed on this server currently...");
+    }
+    
+    private void handleFrag() {
+        byte victim = (byte) msg.readByte();
+        byte attacker = (byte) msg.readByte();
+        
+        cl.getFrags().add(victim, attacker);
+        
+        if (cl.getFrags().isFull()) {
+            cl.getFrags().writeToDatabase(db);
+            cl.getFrags().clear();
+        }
     }
 }
 

@@ -28,6 +28,8 @@ public class Client {
     private boolean connected;
     
     private Registration registration;
+    private ChatQueue chats;
+    private FragQueue frags;
     
     private InetAddress addr;
     private int port = 27910;
@@ -40,6 +42,7 @@ public class Client {
     private int flags;
     private String name;
     private String teleportname;
+    private int lastInvite = 0;
     
     private DatagramSocket socket;
     
@@ -98,6 +101,14 @@ public class Client {
 
     public Player[] getPlayers() {
         return players;
+    }
+    
+    public Player getPlayer(int client_id) {
+        if (players[client_id] != null) {
+            return players[client_id];
+        }
+        
+        return null;
     }
 
     public void setPlayers(Player[] players) {
@@ -172,6 +183,8 @@ public class Client {
 
     public void setClientnum(int clientnum) {
         this.clientnum = clientnum;
+        chats = new ChatQueue(clientnum);
+        frags = new FragQueue(clientnum);
     }
 
     public int getFlags() {
@@ -225,6 +238,31 @@ public class Client {
     public void setTeleportname(String teleportname) {
         this.teleportname = teleportname;
     }
+
+    public int getLastInvite() {
+        return lastInvite;
+    }
+
+    public void setLastInvite(int lastInvite) {
+        this.lastInvite = lastInvite;
+    }
+
+    public ChatQueue getChats() {
+        return chats;
+    }
+
+    public void setChats(ChatQueue chats) {
+        this.chats = chats;
+    }
+
+    public FragQueue getFrags() {
+        return frags;
+    }
+
+    public void setFrags(FragQueue frags) {
+        this.frags = frags;
+    }
+    
     
 }
 

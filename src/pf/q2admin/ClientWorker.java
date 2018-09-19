@@ -48,7 +48,6 @@ public class ClientWorker implements Runnable {
             db = parent.getConnection();
             
             dateformat = DateTimeFormatter
-                    //.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.US);
                     .ofLocalizedDateTime(FormatStyle.LONG)
                     .withLocale(Locale.US)
                     .withZone(ZoneId.systemDefault());

@@ -10,6 +10,10 @@ import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.SocketException;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import pf.q2admin.message.Registration;
@@ -264,5 +268,15 @@ public class Client {
     }
     
     
+    /**
+     * Get a MySQL formatted datetime string for right now
+     * 
+     * @return 
+     */
+    public static String now() {
+        return DateTimeFormatter
+                    .ofPattern("yyyy-MM-dd HH:mm:ss")
+                    .format(ZonedDateTime.ofInstant(Instant.now(), ZoneId.systemDefault()));
+    }
 }
 

@@ -34,6 +34,8 @@ import pf.q2admin.message.ClientMessage;
  */
 public class Server extends Thread {
 
+    public static final int MINIMUM_VERSION = 178;
+    
     public static final int CMD_REGISTER = 0,
             CMD_QUIT = 1,
             CMD_CONNECT = 2,
@@ -46,7 +48,10 @@ public class Server extends Thread {
             CMD_SEEN = 9,
             CMD_WHOIS = 10,
             CMD_PLAYERS = 11,   // 
-            CMD_FRAG = 12;
+            CMD_FRAG = 12,
+            CMD_MAP = 13,
+            CMD_AUTHORIZE = 14,
+            CMD_HEARTBEAT = 15;
 
     private DatagramSocket socket = null;
     private int listen_port;
@@ -63,8 +68,6 @@ public class Server extends Thread {
     private int key;
     
     private ByteStream msg;
-
-    //private HashMap<Integer, Client> clients;
     private ServerList gameservers;
     
     private ComboPooledDataSource dbpool;
@@ -79,7 +82,6 @@ public class Server extends Thread {
             Logger.getLogger(Server.class.getName()).log(Level.SEVERE, null, ex);
         }
 
-        //clients = new HashMap();
         gameservers = new ServerList();
     }
 
@@ -117,14 +119,17 @@ public class Server extends Thread {
                     key = msg.readLong();
                     cmd = msg.readByte();
                     
-                    cl = gameservers.get(key);
-                    if (cl == null) {
-                        System.out.printf("unknown server, skipping\n");
-                        continue;
+                    if (cmd == CMD_AUTHORIZE) {
+                        new Thread(new AuthorizeWorker(msg, this)).start();
+                    } else {
+                        cl = gameservers.get(key);
+                        if (cl == null) {
+                            System.out.printf("unknown server, skipping\n");
+                            continue;
+                        }
+
+                        new Thread(new ClientWorker(cmd, msg, cl, this)).start();
                     }
-                    
-                    new Thread(new ClientWorker(cmd, msg, cl, this)).start();
-                    
                 } catch (IOException e) {
                     System.out.print(e.getMessage());
                 }
@@ -234,10 +239,10 @@ public class Server extends Thread {
         t.start();
     }
     
-    private void loadServers() {
+    public void loadServers() {
         try {
             int i = 0;
-            String sql = "SELECT id, serverkey, INET_NTOA(addr) AS ip, port, password, teleportname, map, name FROM server WHERE enabled = 1";
+            String sql = "SELECT id, serverkey, INET_NTOA(addr) AS ip, port, password, teleportname, map, name FROM server WHERE enabled = 1 AND authorized = 1";
             Connection conn = dbpool.getConnection();
             Statement st = conn.createStatement();
             ResultSet rs = st.executeQuery(sql);
@@ -325,6 +330,10 @@ public class Server extends Thread {
                 return "PLYRS";
             case Server.CMD_FRAG:
                 return "FRAG";
+            case Server.CMD_MAP:
+                return "MAP";
+            case Server.CMD_HEARTBEAT:
+                return "<3";
             default:
                 return "UNKN";
         }
@@ -352,5 +361,9 @@ public class Server extends Thread {
         while ((c = gameservers.next()) != null) {
             c.send("sv !remote_register");
         }
+    }
+    
+    public Connection getDatabaseConnection() throws SQLException {
+        return dbpool.getConnection();
     }
 }

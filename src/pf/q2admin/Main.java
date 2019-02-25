@@ -5,6 +5,8 @@
  */
 package pf.q2admin;
 
+import pf.q2admin.mgmt.WebsiteManagement;
+
 /**
  *
  * @author joe
@@ -17,5 +19,8 @@ public class Main {
     public static void main(String[] args) {
         Server server = new Server();
         server.start();
+        
+        WebsiteManagement webman = new WebsiteManagement();
+        webman.start();
     }
 }

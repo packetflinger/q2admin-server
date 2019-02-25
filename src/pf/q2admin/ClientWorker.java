@@ -119,6 +119,10 @@ public class ClientWorker implements Runnable {
                 case Server.CMD_FRAG:
                     handleFrag();
                     break;
+                
+                case Server.CMD_HEARTBEAT:
+                    handleHeartbeat();
+                    break;
             }
             
             db.close();
@@ -228,6 +232,10 @@ public class ClientWorker implements Runnable {
         int client_id = msg.readByte();
         String userinfo = msg.readString();
         
+        // check bans
+        // check mutes
+        // check prohibited names
+        
         cl.getPlayers()[client_id] = new Player(client_id, userinfo);
         
         System.out.printf("Client Connected - %s (%d)\n", 
@@ -335,8 +343,14 @@ public class ClientWorker implements Runnable {
      */
     private void handleRegister() {
         cl.setRegistration(new Registration(msg));
-        cl.send("sv !remote_online");
-        cl.send("sv !remote_playerlist");
+        
+        if (cl.getRegistration().getClientversion() < Server.MINIMUM_VERSION) {
+            System.out.printf("Version too old (%d - %d < %d)\n", cl.getKey(), cl.getRegistration().getClientversion(), Server.MINIMUM_VERSION);
+        } else {
+            cl.setRcon(cl.getRegistration().getPassword());
+            cl.send("sv !remote_online");
+            cl.send("sv !remote_playerlist");
+        }
     }
     
     /**
@@ -490,14 +504,33 @@ public class ClientWorker implements Runnable {
     
     private void handleFrag() {
         byte victim = (byte) msg.readByte();
+        String vname = msg.readString();
         byte attacker = (byte) msg.readByte();
+        String aname = msg.readString();
         
-        cl.getFrags().add(victim, attacker);
+        cl.getFrags().add(victim, attacker, vname, aname);
         
         if (cl.getFrags().isFull()) {
             cl.getFrags().writeToDatabase(db);
             cl.getFrags().clear();
         }
+    }
+    
+    private void handleMap(String map) {
+        try {
+            String sql = "INSERT INTO map (server_id, map, map_date) VALUES (?,?,?)";
+            PreparedStatement st = db.prepareStatement(sql);
+            st.setInt(1, cl.getClientnum());
+            st.setString(2, map);
+            st.setString(3, Client.now());
+            
+        } catch (SQLException ex) {
+            Logger.getLogger(ClientWorker.class.getName()).log(Level.SEVERE, null, ex);
+        }
+    }
+    
+    private void handleHeartbeat() {
+        System.out.printf("Heartbeat\n");
     }
 }
 
